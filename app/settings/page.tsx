@@ -13,12 +13,9 @@ import { Server, Key, RefreshCw, Zap, CheckCircle, XCircle } from "lucide-react"
 
 export default function SettingsPage() {
   const { settings, updateSettings, connected, status } = useSentinel()
-  const [url, setUrl] = useState(settings.sentinelUrl)
+  const [url,   setUrl]   = useState(settings.sentinelUrl)
   const [token, setToken] = useState(settings.sentinelToken)
   const [saved, setSaved] = useState(false)
-
-  // Local state for the refresh-interval input so backspace doesn't fight React.
-  // We only commit a valid value to context on blur.
   const [intervalStr, setIntervalStr] = useState(String(settings.dashboardRefreshInterval))
 
   const handleSave = () => {
@@ -32,41 +29,36 @@ export default function SettingsPage() {
     if (!isNaN(parsed) && parsed >= 5 && parsed <= 300) {
       updateSettings({ dashboardRefreshInterval: parsed })
     } else {
-      // Revert to the last valid value
       setIntervalStr(String(settings.dashboardRefreshInterval))
     }
   }
 
   return (
     <AppShell>
-      <Header title="Settings" description="Configure your Sentinel connection and preferences" />
+      <Header title="Settings" description="Configure your Sentinel connection" />
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6 max-w-3xl">
 
-      <div className="p-6 space-y-6 max-w-3xl">
-        {/* Connection Status */}
+        {/* Status */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <Server className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <div>
-                  <CardTitle>Connection Status</CardTitle>
-                  <CardDescription>Current status of your Sentinel API connection</CardDescription>
+                <div className="min-w-0">
+                  <CardTitle className="text-sm md:text-base">Connection Status</CardTitle>
+                  <CardDescription className="hidden sm:block">Sentinel API connection</CardDescription>
                 </div>
               </div>
-              <Badge variant={connected ? "success" : "destructive"}>
-                {connected ? (
-                  <><CheckCircle className="mr-1 h-3 w-3" /> Connected</>
-                ) : (
-                  <><XCircle className="mr-1 h-3 w-3" /> Disconnected</>
-                )}
+              <Badge variant={connected ? "success" : "destructive"} className="flex-shrink-0">
+                {connected ? <><CheckCircle className="mr-1 h-3 w-3" />Connected</> : <><XCircle className="mr-1 h-3 w-3" />Disconnected</>}
               </Badge>
             </div>
           </CardHeader>
           {connected && status && (
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {[
                   { label: "Uptime",   value: status.uptimeFormatted },
                   { label: "Events",   value: status.eventCount.toLocaleString() },
@@ -75,7 +67,7 @@ export default function SettingsPage() {
                 ].map((s) => (
                   <div key={s.label} className="rounded-lg bg-secondary/50 p-3">
                     <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{s.label}</p>
-                    <p className="mt-1 text-lg font-semibold">{s.value}</p>
+                    <p className="mt-1 text-base font-semibold">{s.value}</p>
                   </div>
                 ))}
               </div>
@@ -83,50 +75,36 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        {/* API Configuration */}
+        {/* API Config */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
                 <Key className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <CardTitle>API Configuration</CardTitle>
-                <CardDescription>Configure your Sentinel API endpoint and authentication</CardDescription>
+                <CardTitle className="text-sm md:text-base">API Configuration</CardTitle>
+                <CardDescription className="hidden sm:block">Endpoint and authentication</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Sentinel API URL
-              </label>
-              <Input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="http://localhost:48923"
-              />
-              <p className="text-[11px] text-muted-foreground">The URL of your Sentinel selfbot API server</p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sentinel API URL</label>
+              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://localhost:48923"
+                className="h-11 text-base" autoCapitalize="none" autoCorrect="off" inputMode="url" />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                API Token
-              </label>
-              <Input
-                type="password"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="Enter your bearer token"
-              />
-              <p className="text-[11px] text-muted-foreground">Bearer token for API authentication</p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Token</label>
+              <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Bearer token"
+                className="h-11 text-base" autoCapitalize="none" autoCorrect="off" />
             </div>
-            <div className="flex items-center gap-3 pt-2">
-              <Button onClick={handleSave}>
-                {saved ? <><CheckCircle className="mr-2 h-4 w-4" /> Saved</> : "Save Configuration"}
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <Button onClick={handleSave} className="h-11 flex-1 sm:flex-none">
+                {saved ? <><CheckCircle className="mr-2 h-4 w-4" />Saved</> : "Save Configuration"}
               </Button>
-              <Button variant="outline" onClick={() => window.location.reload()}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reconnect
+              <Button variant="outline" onClick={() => window.location.reload()} className="h-11 flex-1 sm:flex-none">
+                <RefreshCw className="mr-2 h-4 w-4" />Reconnect
               </Button>
             </div>
           </CardContent>
@@ -136,78 +114,53 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
                 <Zap className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>Customize your Sentinel dashboard experience</CardDescription>
+                <CardTitle className="text-sm md:text-base">Preferences</CardTitle>
+                <CardDescription className="hidden sm:block">Customize your experience</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* SSE toggle */}
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="text-sm font-medium">Real-time Updates (SSE)</p>
-                <p className="text-xs text-muted-foreground">Enable live event streaming from the API</p>
-              </div>
-              <button
-                onClick={() => updateSettings({ enableSSE: !settings.enableSSE })}
-                className={`relative h-6 w-11 rounded-full transition-colors ${
-                  settings.enableSSE ? "bg-primary" : "bg-secondary"
-                }`}
-              >
-                <span
-                  className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-                    settings.enableSSE ? "left-6" : "left-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Notifications toggle */}
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="text-sm font-medium">Desktop Notifications</p>
-                <p className="text-xs text-muted-foreground">Show notifications for alerts</p>
-              </div>
-              <button
-                onClick={() =>
-                  updateSettings({ showDesktopNotifications: !settings.showDesktopNotifications })
-                }
-                className={`relative h-6 w-11 rounded-full transition-colors ${
-                  settings.showDesktopNotifications ? "bg-primary" : "bg-secondary"
-                }`}
-              >
-                <span
-                  className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-                    settings.showDesktopNotifications ? "left-6" : "left-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Refresh interval — fixed input: local string state, commit on blur */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Refresh Interval (seconds)
-              </label>
-              <Input
-                type="number"
-                min={5}
-                max={300}
-                value={intervalStr}
-                onChange={(e) => setIntervalStr(e.target.value)}
-                onBlur={handleIntervalBlur}
-              />
-              <p className="text-[11px] text-muted-foreground">
-                How often to poll target statuses (5 – 300 s). Press Tab or click away to save.
-              </p>
+          <CardContent className="space-y-3">
+            <ToggleRow label="Real-time Updates (SSE)" description="Live event streaming from the API"
+              enabled={settings.enableSSE} onToggle={() => updateSettings({ enableSSE: !settings.enableSSE })} />
+            <ToggleRow label="Desktop Notifications" description="Show notifications for alerts"
+              enabled={settings.showDesktopNotifications}
+              onToggle={() => updateSettings({ showDesktopNotifications: !settings.showDesktopNotifications })} />
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Refresh Interval (seconds)</label>
+              <Input type="number" inputMode="numeric" min={5} max={300}
+                value={intervalStr} onChange={(e) => setIntervalStr(e.target.value)}
+                onBlur={handleIntervalBlur} className="h-11 text-base" />
+              <p className="text-[11px] text-muted-foreground">Poll interval for target statuses (5–300 s). Tap away to save.</p>
             </div>
           </CardContent>
         </Card>
       </div>
     </AppShell>
+  )
+}
+
+function ToggleRow({ label, description, enabled, onToggle }: { label: string; description: string; enabled: boolean; onToggle: () => void }) {
+  return (
+    <div
+      className="flex items-center justify-between rounded-xl border p-4 cursor-pointer active:bg-secondary/50 transition-colors select-none"
+      style={{ minHeight: 64 }}
+      onClick={onToggle}
+      role="switch" aria-checked={enabled} tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
+    >
+      <div className="flex-1 min-w-0 mr-4">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
+      <div className="relative flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200"
+        style={{ backgroundColor: enabled ? "var(--color-primary)" : "var(--color-secondary)" }}>
+        <span className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+          style={{ transform: enabled ? "translateX(20px)" : "translateX(4px)" }} />
+      </div>
+    </div>
   )
 }

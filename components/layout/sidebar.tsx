@@ -15,18 +15,19 @@ import {
 } from "lucide-react"
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Targets", href: "/targets", icon: Users },
-  { name: "Alerts", href: "/alerts", icon: Bell },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/",         icon: LayoutDashboard },
+  { name: "Targets",   href: "/targets",  icon: Users },
+  { name: "Alerts",    href: "/alerts",   icon: Bell },
+  { name: "Settings",  href: "/settings", icon: Settings },
 ]
 
 export function Sidebar() {
-  const pathname = usePathname()
+  const pathname  = usePathname()
   const { connected, status } = useSentinel()
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r bg-background">
+    /* hidden on mobile, visible from md upward */
+    <aside className="fixed left-0 top-0 z-40 hidden md:flex h-screen w-60 flex-col border-r bg-background">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 border-b px-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -38,8 +39,10 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-3">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || 
-            (item.href !== "/" && pathname.startsWith(item.href))
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href)
           return (
             <Link
               key={item.name}
@@ -61,19 +64,19 @@ export function Sidebar() {
       {/* Status footer */}
       <div className="border-t p-4">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className={cn(
+          <div
+            className={cn(
               "h-2 w-2 rounded-full",
               connected ? "bg-status-online animate-pulse-dot" : "bg-status-offline"
-            )} />
-          </div>
+            )}
+          />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-foreground">
               {connected ? "Connected" : "Disconnected"}
             </p>
             {status && (
               <p className="text-[10px] text-muted-foreground truncate">
-                {status.activeTargets} targets | {status.uptimeFormatted}
+                {status.activeTargets} targets · {status.uptimeFormatted}
               </p>
             )}
           </div>

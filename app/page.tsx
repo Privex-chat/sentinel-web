@@ -17,23 +17,22 @@ import { Users, Plus, Settings, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 
 export default function DashboardPage() {
-  const { 
-    targets, 
-    targetStatuses, 
-    recentEvents, 
-    removeTarget, 
-    isLoading, 
+  const {
+    targets,
+    targetStatuses,
+    recentEvents,
+    removeTarget,
+    isLoading,
     connected,
-    settings 
+    settings,
   } = useSentinel()
   const [showAddForm, setShowAddForm] = useState(false)
 
-  // Not configured
   if (!settings.sentinelToken) {
     return (
       <AppShell>
         <Header title="Dashboard" />
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           <Card className="max-w-lg mx-auto">
             <CardContent className="pt-6">
               <EmptyState
@@ -41,7 +40,7 @@ export default function DashboardPage() {
                 title="Configuration Required"
                 message="Set up your Sentinel API connection in Settings to start tracking targets."
                 action={
-                  <Button asChild>
+                  <Button asChild size="lg" className="w-full sm:w-auto">
                     <Link href="/settings">
                       <Settings className="mr-2 h-4 w-4" />
                       Go to Settings
@@ -56,7 +55,6 @@ export default function DashboardPage() {
     )
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <AppShell>
@@ -68,12 +66,11 @@ export default function DashboardPage() {
     )
   }
 
-  // Not connected
   if (!connected) {
     return (
       <AppShell>
         <Header title="Dashboard" />
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           <Card className="max-w-lg mx-auto">
             <CardContent className="pt-6">
               <EmptyState
@@ -81,11 +78,11 @@ export default function DashboardPage() {
                 title="Connection Failed"
                 message="Unable to connect to your Sentinel API. Check your settings and ensure the server is running."
                 action={
-                  <div className="flex gap-2">
-                    <Button asChild variant="outline">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button asChild variant="outline" className="w-full sm:w-auto">
                       <Link href="/settings">Check Settings</Link>
                     </Button>
-                    <Button onClick={() => window.location.reload()}>
+                    <Button onClick={() => window.location.reload()} className="w-full sm:w-auto">
                       Retry Connection
                     </Button>
                   </div>
@@ -100,48 +97,50 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <Header 
-        title="Dashboard" 
+      <Header
+        title="Dashboard"
         description="Monitor all tracked targets"
         actions={
-          <Button size="sm" onClick={() => setShowAddForm(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Target
+          <Button
+            size="sm"
+            onClick={() => setShowAddForm(true)}
+            className="h-9 px-3 md:px-4"
+          >
+            <Plus className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Add Target</span>
           </Button>
         }
       />
 
-      <div className="p-6 space-y-6">
-        {/* Stats Overview */}
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+        {/* Stats */}
         <StatsOverview />
 
-        {/* Main content grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main grid: stacked on mobile, side-by-side on desktop */}
+        <div className="grid gap-4 md:gap-6 xl:grid-cols-3">
           {/* Targets section */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="xl:col-span-2 space-y-3">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+              <CardHeader className="flex flex-row items-center justify-between border-b pb-3 px-4">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Users className="h-4 w-4" />
                   Targets ({targets.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4">
-                {/* Add target form */}
+              <CardContent className="p-3 md:p-4">
                 {showAddForm && (
                   <div className="mb-4">
                     <AddTargetForm onClose={() => setShowAddForm(false)} />
                   </div>
                 )}
 
-                {/* Targets grid */}
                 {targets.length === 0 ? (
                   <EmptyState
                     icon={Users}
                     title="No Targets"
                     message="Add your first target to start tracking their Discord activity."
                     action={
-                      <Button onClick={() => setShowAddForm(true)}>
+                      <Button onClick={() => setShowAddForm(true)} className="w-full sm:w-auto">
                         <Plus className="mr-2 h-4 w-4" />
                         Add Target
                       </Button>
@@ -163,7 +162,7 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Live feed section */}
+          {/* Live feed */}
           <div>
             <LiveFeed events={recentEvents} />
           </div>

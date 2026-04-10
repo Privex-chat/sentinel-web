@@ -4,24 +4,14 @@
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Spinner } from "@/components/ui/spinner"
-import { EmptyState } from "@/components/ui/empty-state"
 import { useApi } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatRelative, formatMs } from "@/lib/utils"
+import { formatRelative } from "@/lib/utils"
 import { EVENT_COLORS, EVENT_LABELS } from "@/lib/types"
 import {
-  Activity,
-  Gamepad2,
-  Music,
-  Mic,
-  AlertTriangle,
-  Clock,
-  MessageSquare,
-  Ghost,
-  Trash2,
-  Edit,
+  Activity, Gamepad2, Music, Mic, AlertTriangle,
+  Clock, MessageSquare, Ghost, Trash2, Edit,
 } from "lucide-react"
 
 export default function TargetOverviewPage() {
@@ -48,12 +38,12 @@ export default function TargetOverviewPage() {
     !!settings.sentinelToken
   )
 
-  const presence        = status?.presence
-  const activities      = status?.activities || []
-  const voiceState      = status?.voiceState
-  const todaySummary    = daily?.[0]
-  const recentEvents    = timeline?.events || []
-  const recentAnomalies = (anomalies || []).slice(0, 3)
+  const presence         = status?.presence
+  const activities       = status?.activities || []
+  const voiceState       = status?.voiceState
+  const todaySummary     = daily?.[0]
+  const recentEvents     = timeline?.events || []
+  const recentAnomalies  = (anomalies || []).slice(0, 3)
 
   const gamingActivity    = activities.find((a) => a.type === 0)
   const spotifyActivity   = activities.find((a) => a.type === 2)
@@ -66,17 +56,15 @@ export default function TargetOverviewPage() {
     : 0
 
   return (
-    <div className="space-y-5">
-      {/* Custom status */}
+    <div className="space-y-4">
       {customStatus?.state && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm italic text-muted-foreground">
           &quot;{customStatus.state}&quot;
         </div>
       )}
 
-      {/* Live activity */}
       {(gamingActivity || spotifyActivity || streamingActivity || voiceState) && (
-        <Card className="overflow-hidden border-primary/20">
+        <Card className="border-primary/20">
           <CardHeader className="pb-2 pt-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <span className="relative flex h-2 w-2">
@@ -88,47 +76,33 @@ export default function TargetOverviewPage() {
           </CardHeader>
           <CardContent className="space-y-2 pb-3">
             {gamingActivity && (
-              <ActivityTile
-                icon={<Gamepad2 className="h-4 w-4" style={{ color: "var(--color-chart-1)" }} />}
+              <ActivityTile icon={<Gamepad2 className="h-4 w-4" />} accent="var(--color-chart-1)"
                 title={gamingActivity.name}
                 sub={[gamingActivity.details, gamingActivity.state].filter(Boolean).join(" · ")}
-                accent="var(--color-chart-1)"
               />
             )}
             {spotifyActivity && (
-              <ActivityTile
-                icon={<Music className="h-4 w-4" style={{ color: "var(--color-spotify)" }} />}
+              <ActivityTile icon={<Music className="h-4 w-4" />} accent="var(--color-spotify)"
                 title={spotifyActivity.details || "Spotify"}
                 sub={spotifyActivity.state ? `by ${spotifyActivity.state}` : undefined}
-                accent="var(--color-spotify)"
               />
             )}
             {streamingActivity && (
-              <ActivityTile
-                icon={<Activity className="h-4 w-4" style={{ color: "var(--color-chart-4)" }} />}
-                title={streamingActivity.name}
-                sub={streamingActivity.details}
-                accent="var(--color-chart-4)"
+              <ActivityTile icon={<Activity className="h-4 w-4" />} accent="var(--color-chart-4)"
+                title={streamingActivity.name} sub={streamingActivity.details}
               />
             )}
             {voiceState && (
-              <ActivityTile
-                icon={<Mic className="h-4 w-4" style={{ color: "var(--color-status-online)" }} />}
+              <ActivityTile icon={<Mic className="h-4 w-4" />} accent="var(--color-status-online)"
                 title="In Voice Channel"
-                sub={[
-                  voiceState.streaming && "Streaming",
-                  voiceState.selfMute   && "Muted",
-                  voiceState.selfDeaf   && "Deafened",
-                ].filter(Boolean).join(" · ") || "Active"}
-                accent="var(--color-status-online)"
+                sub={[voiceState.streaming && "Streaming", voiceState.selfMute && "Muted", voiceState.selfDeaf && "Deafened"].filter(Boolean).join(" · ") || "Active"}
               />
             )}
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* Today's stats */}
+      <div className="grid gap-4 lg:grid-cols-2">
         {todaySummary && (
           <Card>
             <CardHeader className="pb-2 pt-3">
@@ -139,21 +113,17 @@ export default function TargetOverviewPage() {
             </CardHeader>
             <CardContent className="pb-3">
               <div className="grid grid-cols-4 gap-2">
-                <StatCard value={`${todayActiveMinutes}m`}           label="Active"   color="var(--color-status-online)"  icon={Activity}     />
-                <StatCard value={todaySummary.message_count}          label="Messages" color="var(--color-chart-3)"        icon={MessageSquare}/>
-                <StatCard value={todaySummary.ghost_type_count}       label="Ghosts"   color="var(--color-chart-4)"        icon={Ghost}        />
-                <StatCard value={todaySummary.delete_count}           label="Deleted"  color="var(--color-destructive)"    icon={Trash2}       />
-                <StatCard value={`${todaySummary.voice_minutes}m`}    label="Voice"    color="var(--color-chart-1)"        icon={Mic}          />
-                <StatCard value={todaySummary.edit_count}             label="Edited"   color="var(--color-chart-3)"        icon={Edit}         />
+                <StatCard value={`${todayActiveMinutes}m`}        label="Active"    color="var(--color-status-online)" icon={Activity}     />
+                <StatCard value={todaySummary.message_count}       label="Messages"  color="var(--color-chart-3)"      icon={MessageSquare}/>
+                <StatCard value={todaySummary.ghost_type_count}    label="Ghosts"    color="var(--color-chart-4)"      icon={Ghost}        />
+                <StatCard value={todaySummary.delete_count}        label="Deleted"   color="var(--color-destructive)"  icon={Trash2}       />
+                <StatCard value={`${todaySummary.voice_minutes}m`} label="Voice"     color="var(--color-chart-1)"      icon={Mic}          />
+                <StatCard value={todaySummary.edit_count}          label="Edited"    color="var(--color-chart-3)"      icon={Edit}         />
                 <StatCard
-                  value={
-                    todaySummary.first_seen
-                      ? new Date(todaySummary.first_seen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                      : "—"
-                  }
-                  label="First Seen"
-                  color="var(--color-muted-foreground)"
-                  icon={Clock}
+                  value={todaySummary.first_seen
+                    ? new Date(todaySummary.first_seen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    : "—"}
+                  label="First Seen" color="var(--color-muted-foreground)" icon={Clock}
                 />
                 <StatCard value={todaySummary.reaction_count} label="Reactions" color="var(--color-chart-3)" icon={Activity} />
               </div>
@@ -161,7 +131,6 @@ export default function TargetOverviewPage() {
           </Card>
         )}
 
-        {/* Anomalies */}
         {recentAnomalies.length > 0 && (
           <Card className="border-destructive/25">
             <CardHeader className="pb-2 pt-3">
@@ -179,7 +148,6 @@ export default function TargetOverviewPage() {
         )}
       </div>
 
-      {/* Recent activity timeline */}
       {recentEvents.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-3">
@@ -188,8 +156,8 @@ export default function TargetOverviewPage() {
               Recent Activity
             </CardTitle>
           </CardHeader>
-          <CardContent className="pb-3">
-            <div className="space-y-0.5 max-h-[320px] overflow-y-auto pr-1">
+          <CardContent className="pb-2">
+            <div className="space-y-0.5 max-h-72 overflow-y-auto pr-1">
               {recentEvents.map((event, i) => {
                 const color = EVENT_COLORS[event.event_type] || "var(--color-muted-foreground)"
                 const label = EVENT_LABELS[event.event_type] || event.event_type
@@ -198,19 +166,16 @@ export default function TargetOverviewPage() {
                   const d = typeof event.data === "string" ? JSON.parse(event.data) : event.data
                   if (d.newStatus)  detail = `${d.oldStatus || "?"} → ${d.newStatus}`
                   else if (d.name)  detail = d.name
-                  else if (d.changes) detail = Array.isArray(d.changes) ? d.changes.slice(0, 2).join(", ") : String(d.changes)
                   else if (d.song)  detail = `${d.song} · ${d.artist}`
                 } catch { /* ignore */ }
 
                 return (
                   <div
                     key={i}
-                    className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-secondary/40"
+                    className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-secondary/40 transition-colors"
+                    style={{ minHeight: 40 }}
                   >
-                    <div
-                      className="h-7 w-0.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    />
+                    <div className="h-6 w-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span
@@ -219,9 +184,7 @@ export default function TargetOverviewPage() {
                         >
                           {label}
                         </span>
-                        {detail && (
-                          <span className="truncate text-xs text-muted-foreground">{detail}</span>
-                        )}
+                        {detail && <span className="truncate text-xs text-muted-foreground">{detail}</span>}
                       </div>
                     </div>
                     <span className="text-[10px] text-muted-foreground flex-shrink-0">
@@ -235,12 +198,9 @@ export default function TargetOverviewPage() {
         </Card>
       )}
 
-      {/* Notes */}
       {target?.notes && (
         <Card className="border-chart-1/20">
-          <CardHeader className="pb-2 pt-3">
-            <CardTitle className="text-sm">Notes</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
           <CardContent className="pb-3">
             <p className="whitespace-pre-wrap text-sm text-muted-foreground">{target.notes}</p>
           </CardContent>
@@ -250,28 +210,10 @@ export default function TargetOverviewPage() {
   )
 }
 
-/* ── Sub-components ─────────────────────────────────────────────────────────── */
-
-function ActivityTile({
-  icon, title, sub, accent,
-}: {
-  icon: React.ReactNode
-  title: string
-  sub?: string
-  accent: string
-}) {
+function ActivityTile({ icon, title, sub, accent }: { icon: React.ReactNode; title: string; sub?: string; accent: string }) {
   return (
-    <div
-      className="flex items-center gap-3 rounded-lg px-3 py-2.5"
-      style={{
-        backgroundColor: `${accent}12`,
-        border: `1px solid ${accent}25`,
-      }}
-    >
-      <div
-        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
-        style={{ backgroundColor: `${accent}20` }}
-      >
+    <div className="flex items-center gap-3 rounded-lg px-3 py-2.5" style={{ backgroundColor: `${accent}12`, border: `1px solid ${accent}25` }}>
+      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${accent}20`, color: accent }}>
         {icon}
       </div>
       <div className="min-w-0">
@@ -282,48 +224,30 @@ function ActivityTile({
   )
 }
 
-function StatCard({
-  value, label, color, icon: Icon,
-}: {
-  value: string | number
-  label: string
-  color: string
-  icon: React.ElementType
-}) {
+function StatCard({ value, label, color, icon: Icon }: { value: string | number; label: string; color: string; icon: React.ElementType }) {
   return (
-    <div
-      className="flex flex-col items-center justify-center rounded-xl p-2.5 text-center"
-      style={{ backgroundColor: `${color}10`, border: `1px solid ${color}20` }}
-    >
-      <Icon className="mb-1 h-3.5 w-3.5 opacity-70" style={{ color }} />
-      <p className="text-sm font-bold leading-none" style={{ color }}>{value}</p>
-      <p className="mt-1 text-[9px] uppercase tracking-wide text-muted-foreground">{label}</p>
+    <div className="flex flex-col items-center justify-center rounded-xl p-2 text-center" style={{ backgroundColor: `${color}10`, border: `1px solid ${color}20` }}>
+      <Icon className="mb-1 h-3 w-3 opacity-70" style={{ color }} />
+      <p className="text-xs font-bold leading-none" style={{ color }}>{value}</p>
+      <p className="mt-1 text-[8px] uppercase tracking-wide text-muted-foreground leading-tight">{label}</p>
     </div>
   )
 }
 
 function AnomalyRow({ a }: { a: { severity: string; type: string; description: string; timestamp: number } }) {
-  const severityColor =
-    a.severity === "high"   ? "var(--color-destructive)" :
-    a.severity === "medium" ? "var(--color-status-idle)" :
-                              "var(--color-muted-foreground)"
-  const variant =
-    a.severity === "high"   ? "destructive" :
-    a.severity === "medium" ? "warning"     : "secondary"
-
+  const severityColor = a.severity === "high" ? "var(--color-destructive)" : a.severity === "medium" ? "var(--color-status-idle)" : "var(--color-muted-foreground)"
+  const variant = (a.severity === "high" ? "destructive" : a.severity === "medium" ? "warning" : "secondary") as "destructive" | "warning" | "secondary"
   return (
     <div className="flex items-start gap-3 rounded-lg bg-secondary/50 px-3 py-2">
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" style={{ color: severityColor }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={variant as "destructive" | "warning" | "secondary"}>{a.severity}</Badge>
+          <Badge variant={variant}>{a.severity}</Badge>
           <span className="text-[10px] text-muted-foreground">{a.type}</span>
         </div>
         <p className="mt-1 text-xs">{a.description}</p>
       </div>
-      <span className="text-[10px] text-muted-foreground flex-shrink-0">
-        {formatRelative(a.timestamp)}
-      </span>
+      <span className="text-[10px] text-muted-foreground flex-shrink-0">{formatRelative(a.timestamp)}</span>
     </div>
   )
 }
