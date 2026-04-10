@@ -64,11 +64,20 @@ const pendingRequests = new Map<string, Promise<unknown>>()
 
 const REQUEST_TIMEOUT_MS = 30_000
 
-function getHeaders(): Record<string, string> {
-  return {
+/**
+ * Only include Content-Type: application/json when the request actually has a
+ * body. Fastify rejects requests that declare this header but send an empty
+ * body (HTTP 400 FST_ERR_CTP_EMPTY_JSON_BODY). DELETE and bodyless PATCH
+ * requests must not set this header.
+ */
+function getHeaders(hasBody = false): Record<string, string> {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${apiConfig.token}`,
-    "Content-Type": "application/json",
   }
+  if (hasBody) {
+    headers["Content-Type"] = "application/json"
+  }
+  return headers
 }
 
 async function request<T>(
@@ -81,6 +90,7 @@ async function request<T>(
   const url      = `${apiConfig.baseUrl}${path}`
   const method   = options.method || "GET"
   const cacheKey = `${method}:${url}`
+  const hasBody  = options.body != null
 
   // Return cached value for GET-like requests
   if (cacheTtl > 0 && method === "GET") {
@@ -101,7 +111,7 @@ async function request<T>(
     try {
       const res = await fetch(url, {
         ...options,
-        headers: { ...getHeaders(), ...options.headers },
+        headers: { ...getHeaders(hasBody), ...options.headers },
         // Caller can pass their own signal; we fall back to our timeout signal
         signal: options.signal ?? controller.signal,
       })
