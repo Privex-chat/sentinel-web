@@ -27,7 +27,7 @@ No data passes through Vercel or any third party — all API calls go directly f
 
 ## Using the Hosted App
 
-1. Open [sentinel-web-v1.vercel.app](https://sentinel-web-v1.vercel.app)
+1. Open [sentinel-panel.vercel.app](https://sentinel-panel.vercel.app)
 2. Go to **Settings**
 3. Enter your **Sentinel API URL** and **API Token**
 4. Save — the dashboard connects automatically
