@@ -87,7 +87,7 @@ export default function ProfilePage() {
                 .filter((snap) => snap.avatar_hash)
                 .slice(0, 24)
                 .map((snap, i) => (
-                  
+                  <a
                     key={i}
                     href={getAvatarUrl(userId, snap.avatar_hash, 512)}
                     target="_blank"
@@ -108,7 +108,7 @@ export default function ProfilePage() {
                       {formatDateTime(snap.timestamp)}
                     </p>
                   </a>
-                ))}
+                ))
             </div>
           </CardContent>
         </Card>
