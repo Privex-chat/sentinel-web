@@ -5,13 +5,14 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useSentinel } from "@/lib/context"
-import { LayoutDashboard, Users, Bell, Settings } from "lucide-react"
+import { LayoutDashboard, Users, Bell, Settings, BookOpen } from "lucide-react"
 
 const navigation = [
-  { name: "Dashboard", href: "/",        icon: LayoutDashboard },
-  { name: "Targets",   href: "/targets", icon: Users },
-  { name: "Alerts",    href: "/alerts",  icon: Bell },
-  { name: "Settings",  href: "/settings",icon: Settings },
+  { name: "Home",     href: "/",        icon: LayoutDashboard },
+  { name: "Targets",  href: "/targets", icon: Users },
+  { name: "Alerts",   href: "/alerts",  icon: Bell },
+  { name: "Setup",    href: "/setup",   icon: BookOpen },
+  { name: "Settings", href: "/settings",icon: Settings },
 ]
 
 export function MobileNav() {
@@ -45,7 +46,6 @@ export function MobileNav() {
             )}
             style={{ minHeight: 56 }}
           >
-            {/* Active indicator pill */}
             {isActive && (
               <span
                 className="absolute top-1.5 h-0.5 w-8 rounded-full"
@@ -53,13 +53,18 @@ export function MobileNav() {
               />
             )}
 
-            {/* Alert badge for connection status on Settings */}
             <span className="relative">
               <item.icon className="h-5 w-5" />
               {item.name === "Settings" && !connected && (
                 <span
                   className="absolute -right-1 -top-1 h-2 w-2 rounded-full"
                   style={{ backgroundColor: "var(--color-destructive)" }}
+                />
+              )}
+              {item.name === "Setup" && !connected && (
+                <span
+                  className="absolute -right-1 -top-1 h-2 w-2 rounded-full animate-pulse"
+                  style={{ backgroundColor: "var(--color-primary)" }}
                 />
               )}
             </span>

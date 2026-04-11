@@ -8,12 +8,14 @@ import { StatsOverview } from "@/components/dashboard/stats-overview"
 import { TargetCard } from "@/components/dashboard/target-card"
 import { LiveFeed } from "@/components/dashboard/live-feed"
 import { AddTargetForm } from "@/components/dashboard/add-target-form"
+import { WelcomeModal } from "@/components/onboarding/welcome-modal"
+import { ProductTour } from "@/components/onboarding/product-tour"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Spinner } from "@/components/ui/spinner"
 import { useSentinel } from "@/lib/context"
-import { Users, Plus, Settings, AlertTriangle } from "lucide-react"
+import { Users, Plus, Settings, AlertTriangle, BookOpen } from "lucide-react"
 import Link from "next/link"
 
 export default function DashboardPage() {
@@ -31,6 +33,9 @@ export default function DashboardPage() {
   if (!settings.sentinelToken) {
     return (
       <AppShell>
+        {/* Welcome modal for brand-new users */}
+        <WelcomeModal />
+
         <Header title="Dashboard" />
         <div className="p-4 md:p-6">
           <Card className="max-w-lg mx-auto">
@@ -38,14 +43,22 @@ export default function DashboardPage() {
               <EmptyState
                 icon={Settings}
                 title="Configuration Required"
-                message="Set up your Sentinel API connection in Settings to start tracking targets."
+                message="Set up your Sentinel API connection to start tracking targets."
                 action={
-                  <Button asChild size="lg" className="w-full sm:w-auto">
-                    <Link href="/settings">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Go to Settings
-                    </Link>
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button asChild size="lg">
+                      <Link href="/setup">
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Run Setup Guide
+                      </Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline">
+                      <Link href="/settings">
+                        <Settings className="mr-2 h-4 w-4" />
+                        I have an API
+                      </Link>
+                    </Button>
+                  </div>
                 }
               />
             </CardContent>
@@ -82,6 +95,9 @@ export default function DashboardPage() {
                     <Button asChild variant="outline" className="w-full sm:w-auto">
                       <Link href="/settings">Check Settings</Link>
                     </Button>
+                    <Button asChild variant="outline" className="w-full sm:w-auto">
+                      <Link href="/setup">Setup Guide</Link>
+                    </Button>
                     <Button
                       onClick={() => window.location.reload()}
                       className="w-full sm:w-auto"
@@ -100,6 +116,9 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
+      {/* Product tour — shown once to new users who have connected */}
+      <ProductTour />
+
       <Header
         title="Dashboard"
         description="Monitor all tracked targets"
@@ -140,12 +159,12 @@ export default function DashboardPage() {
                 {targets.length === 0 ? (
                   <EmptyState
                     icon={Users}
-                    title="No Targets"
-                    message="Add your first target to start tracking their Discord activity."
+                    title="No Targets Yet"
+                    message="Add a Discord user ID to start tracking their activity, presence, messages, voice calls, and more."
                     action={
                       <Button onClick={() => setShowAddForm(true)} className="w-full sm:w-auto">
                         <Plus className="mr-2 h-4 w-4" />
-                        Add Target
+                        Add First Target
                       </Button>
                     }
                   />
@@ -165,7 +184,7 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Live feed — now receives targetStatuses for name resolution */}
+          {/* Live feed */}
           <div>
             <LiveFeed
               events={recentEvents}

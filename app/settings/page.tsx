@@ -8,8 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { TipTooltip } from "@/components/onboarding/tip-tooltip"
 import { useSentinel } from "@/lib/context"
-import { Server, Key, RefreshCw, Zap, CheckCircle, XCircle } from "lucide-react"
+import { useTour } from "@/components/onboarding/product-tour"
+import { Server, Key, RefreshCw, Zap, CheckCircle, XCircle, BookOpen, Sparkles } from "lucide-react"
+import Link from "next/link"
 
 export default function SettingsPage() {
   const { settings, updateSettings, connected, status } = useSentinel()
@@ -18,6 +21,8 @@ export default function SettingsPage() {
   const [saved,       setSaved]       = useState(false)
   const [intervalStr, setIntervalStr] = useState(String(settings.dashboardRefreshInterval))
   const [intervalSaved, setIntervalSaved] = useState(false)
+  const { reset: resetTour } = useTour()
+  const [tourReset, setTourReset] = useState(false)
 
   const handleSave = () => {
     updateSettings({ sentinelUrl: url, sentinelToken: token })
@@ -38,6 +43,13 @@ export default function SettingsPage() {
 
   const handleIntervalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleIntervalBlur()
+  }
+
+  const handleResetTour = () => {
+    resetTour()
+    setTourReset(true)
+    setTimeout(() => setTourReset(false), 2000)
+    window.location.href = "/"
   }
 
   return (
@@ -83,6 +95,21 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           )}
+          {!connected && (
+            <CardContent>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Not connected to a Sentinel API. Need help setting one up?
+                </p>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/setup">
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Open Setup Guide
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* API Config */}
@@ -93,15 +120,39 @@ export default function SettingsPage() {
                 <Key className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <CardTitle className="text-sm md:text-base">API Configuration</CardTitle>
+                <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                  API Configuration
+                  <TipTooltip
+                    content={
+                      <div>
+                        <p className="font-semibold mb-1">API Configuration</p>
+                        <p className="text-muted-foreground">Set the URL where your Sentinel selfbot is running and the API_AUTH_TOKEN you chose when setting it up.</p>
+                        <p className="mt-2 text-muted-foreground">Don't have an API yet? <Link href="/setup" className="text-primary underline-offset-2 hover:underline">Run the setup guide.</Link></p>
+                      </div>
+                    }
+                  />
+                </CardTitle>
                 <CardDescription className="hidden sm:block">Endpoint and authentication</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Sentinel API URL
+                <TipTooltip
+                  side="right"
+                  content={
+                    <div>
+                      <p className="font-semibold mb-1">API URL</p>
+                      <p className="text-muted-foreground text-[11px]">
+                        Local: <code>http://localhost:48923</code><br />
+                        VPS: <code>http://YOUR_IP:48923</code><br />
+                        Railway: your Railway public domain
+                      </p>
+                    </div>
+                  }
+                />
               </label>
               <Input
                 value={url}
@@ -114,14 +165,23 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 API Token
+                <TipTooltip
+                  side="right"
+                  content={
+                    <div>
+                      <p className="font-semibold mb-1">API_AUTH_TOKEN</p>
+                      <p className="text-muted-foreground text-[11px]">This is the password you set in your selfbot's .env file as API_AUTH_TOKEN. If you used the setup guide, it was auto-generated for you.</p>
+                    </div>
+                  }
+                />
               </label>
               <Input
                 type="password"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="Bearer token"
+                placeholder="Your API_AUTH_TOKEN"
                 className="h-11 text-base"
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -164,17 +224,23 @@ export default function SettingsPage() {
               description="Live event streaming from the API"
               enabled={settings.enableSSE}
               onToggle={() => updateSettings({ enableSSE: !settings.enableSSE })}
+              tip="Server-Sent Events stream live data from your selfbot API. Disable if you're on a slow connection."
             />
             <ToggleRow
               label="Desktop Notifications"
               description="Show notifications for alerts"
               enabled={settings.showDesktopNotifications}
               onToggle={() => updateSettings({ showDesktopNotifications: !settings.showDesktopNotifications })}
+              tip="Browser notifications for alert events (requires notification permission)."
             />
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Refresh Interval (seconds)
+                  <TipTooltip
+                    side="right"
+                    content="How often to poll the API for updated target statuses. Lower = more real-time, higher = less API calls."
+                  />
                 </label>
                 {intervalSaved && (
                   <span className="flex items-center gap-1 text-xs text-status-online">
@@ -200,6 +266,43 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Help & onboarding */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-sm md:text-base">Help & Onboarding</CardTitle>
+                <CardDescription className="hidden sm:block">Setup guides and tutorials</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button asChild variant="outline" className="h-10 flex-1">
+                <Link href="/setup">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Open Setup Guide
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleResetTour}
+                className="h-10 flex-1"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {tourReset ? "Tour reset! Redirecting…" : "Replay Product Tour"}
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              The setup guide walks you through deploying the selfbot API locally, on a VPS, or on Railway.
+              The product tour highlights key features of this dashboard.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </AppShell>
   )
@@ -210,11 +313,13 @@ function ToggleRow({
   description,
   enabled,
   onToggle,
+  tip,
 }: {
   label: string
   description: string
   enabled: boolean
   onToggle: () => void
+  tip?: string
 }) {
   return (
     <div
@@ -227,7 +332,15 @@ function ToggleRow({
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
     >
       <div className="flex-1 min-w-0 mr-4">
-        <p className="text-sm font-medium">{label}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium">{label}</p>
+          {tip && (
+            <TipTooltip
+              content={tip}
+              side="right"
+            />
+          )}
+        </div>
         <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
       </div>
       <div
