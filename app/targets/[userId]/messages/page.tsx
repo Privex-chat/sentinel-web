@@ -3,11 +3,12 @@
 
 import { useState } from "react"
 import { useParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { DiscordId } from "@/components/ui/discord-id"
 import { useApi, useDebounce } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
@@ -51,22 +52,17 @@ function AllMessages({ userId, search }: { userId: string; search: string }) {
   const { settings } = useSentinel()
   const debouncedSearch = useDebounce(search, 300)
 
-  const params: Record<string, string> = {
-    limit: "100",
-  }
-  
-  if (debouncedSearch) {
-    params.search = debouncedSearch
-  }
-  
-  const { data, loading, error, refetch } = useApi(
+  const params: Record<string, string> = { limit: "100" }
+  if (debouncedSearch) params.search = debouncedSearch
+
+  const { data, loading, error } = useApi(
     () => api.getMessages(userId, params),
     [userId, debouncedSearch, settings.sentinelToken],
     !!settings.sentinelToken
   )
 
   if (loading) return <Spinner />
-  if (error) return <EmptyState icon={MessageSquare} title="Error" message={error} />
+  if (error)   return <EmptyState icon={MessageSquare} title="Error" message={error} />
   if (!data || data.length === 0) return <EmptyState icon={MessageSquare} message="No messages found" />
 
   return (
@@ -89,7 +85,7 @@ function DeletedMessages({ userId }: { userId: string }) {
   )
 
   if (loading) return <Spinner />
-  if (error) return <EmptyState icon={Trash2} title="Error" message={error} />
+  if (error)   return <EmptyState icon={Trash2} title="Error" message={error} />
   if (!data || data.length === 0) return <EmptyState icon={Trash2} message="No deleted messages found" />
 
   return (
@@ -112,7 +108,7 @@ function EditedMessages({ userId }: { userId: string }) {
   )
 
   if (loading) return <Spinner />
-  if (error) return <EmptyState icon={Edit} title="Error" message={error} />
+  if (error)   return <EmptyState icon={Edit} title="Error" message={error} />
   if (!data || data.length === 0) return <EmptyState icon={Edit} message="No edited messages found" />
 
   return (
@@ -135,8 +131,8 @@ function GhostTyping({ userId }: { userId: string }) {
   )
 
   if (loading) return <Spinner />
-  if (error) return <EmptyState icon={Ghost} title="Error" message={error} />
-  if (!data) return <EmptyState icon={Ghost} message="No typing data" />
+  if (error)   return <EmptyState icon={Ghost} title="Error" message={error} />
+  if (!data)   return <EmptyState icon={Ghost} message="No typing data" />
 
   return (
     <Card>
@@ -172,6 +168,7 @@ interface MessageItemProps {
     message_id: string
     content: string | null
     channel_id: string
+    guild_id: string | null
     created_at: number
     deleted_at?: number | null
     edited_at?: number | null
@@ -193,22 +190,24 @@ function MessageItem({ msg, deleted, showEditHistory }: MessageItemProps) {
     try { editHistory = JSON.parse(msg.edit_history) } catch { /* ignore */ }
   }
 
+  const discordUrl = msg.guild_id
+    ? `https://discord.com/channels/${msg.guild_id}/${msg.channel_id}`
+    : `https://discord.com/channels/@me/${msg.channel_id}`
+
   return (
     <div className="flex gap-4 px-4 py-3 hover:bg-secondary/30">
-      <div 
+      <div
         className="h-full w-0.5 self-stretch rounded-full min-h-[40px]"
-        style={{ 
-          backgroundColor: deleted 
-            ? "var(--color-destructive)" 
-            : showEditHistory 
-              ? "var(--color-chart-3)" 
-              : "var(--color-border)" 
+        style={{
+          backgroundColor: deleted
+            ? "var(--color-destructive)"
+            : showEditHistory
+              ? "var(--color-chart-3)"
+              : "var(--color-border)",
         }}
       />
       <div className="flex-1 min-w-0">
-        <p 
-          className={`text-sm break-words ${deleted ? "text-destructive line-through" : ""}`}
-        >
+        <p className={`text-sm break-words ${deleted ? "text-destructive line-through" : ""}`}>
           {content}
         </p>
 
@@ -222,8 +221,14 @@ function MessageItem({ msg, deleted, showEditHistory }: MessageItemProps) {
           </div>
         )}
 
-        <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-          <span>ch:{msg.channel_id?.slice(-6)}</span>
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+          {/* Full channel ID with link */}
+          <DiscordId
+            type="channel"
+            id={msg.channel_id}
+            guildId={msg.guild_id || undefined}
+            textSize="text-[10px]"
+          />
           {msg.attachment_count > 0 && <span>{msg.attachment_count} attachments</span>}
           {msg.word_count > 0 && <span>{msg.word_count} words</span>}
           {msg.is_reply > 0 && <span>reply</span>}
