@@ -13,10 +13,11 @@ import { Server, Key, RefreshCw, Zap, CheckCircle, XCircle } from "lucide-react"
 
 export default function SettingsPage() {
   const { settings, updateSettings, connected, status } = useSentinel()
-  const [url,   setUrl]   = useState(settings.sentinelUrl)
-  const [token, setToken] = useState(settings.sentinelToken)
-  const [saved, setSaved] = useState(false)
+  const [url,         setUrl]         = useState(settings.sentinelUrl)
+  const [token,       setToken]       = useState(settings.sentinelToken)
+  const [saved,       setSaved]       = useState(false)
   const [intervalStr, setIntervalStr] = useState(String(settings.dashboardRefreshInterval))
+  const [intervalSaved, setIntervalSaved] = useState(false)
 
   const handleSave = () => {
     updateSettings({ sentinelUrl: url, sentinelToken: token })
@@ -28,9 +29,15 @@ export default function SettingsPage() {
     const parsed = parseInt(intervalStr, 10)
     if (!isNaN(parsed) && parsed >= 5 && parsed <= 300) {
       updateSettings({ dashboardRefreshInterval: parsed })
+      setIntervalSaved(true)
+      setTimeout(() => setIntervalSaved(false), 2000)
     } else {
       setIntervalStr(String(settings.dashboardRefreshInterval))
     }
+  }
+
+  const handleIntervalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") handleIntervalBlur()
   }
 
   return (
@@ -52,7 +59,10 @@ export default function SettingsPage() {
                 </div>
               </div>
               <Badge variant={connected ? "success" : "destructive"} className="flex-shrink-0">
-                {connected ? <><CheckCircle className="mr-1 h-3 w-3" />Connected</> : <><XCircle className="mr-1 h-3 w-3" />Disconnected</>}
+                {connected
+                  ? <><CheckCircle className="mr-1 h-3 w-3" />Connected</>
+                  : <><XCircle   className="mr-1 h-3 w-3" />Disconnected</>
+                }
               </Badge>
             </div>
           </CardHeader>
@@ -90,20 +100,45 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sentinel API URL</label>
-              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://localhost:48923"
-                className="h-11 text-base" autoCapitalize="none" autoCorrect="off" inputMode="url" />
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Sentinel API URL
+              </label>
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="http://localhost:48923"
+                className="h-11 text-base"
+                autoCapitalize="none"
+                autoCorrect="off"
+                inputMode="url"
+              />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Token</label>
-              <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Bearer token"
-                className="h-11 text-base" autoCapitalize="none" autoCorrect="off" />
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                API Token
+              </label>
+              <Input
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Bearer token"
+                className="h-11 text-base"
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
             </div>
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
               <Button onClick={handleSave} className="h-11 flex-1 sm:flex-none">
-                {saved ? <><CheckCircle className="mr-2 h-4 w-4" />Saved</> : "Save Configuration"}
+                {saved
+                  ? <><CheckCircle className="mr-2 h-4 w-4" />Saved</>
+                  : "Save Configuration"
+                }
               </Button>
-              <Button variant="outline" onClick={() => window.location.reload()} className="h-11 flex-1 sm:flex-none">
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="h-11 flex-1 sm:flex-none"
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />Reconnect
               </Button>
             </div>
@@ -124,17 +159,44 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <ToggleRow label="Real-time Updates (SSE)" description="Live event streaming from the API"
-              enabled={settings.enableSSE} onToggle={() => updateSettings({ enableSSE: !settings.enableSSE })} />
-            <ToggleRow label="Desktop Notifications" description="Show notifications for alerts"
+            <ToggleRow
+              label="Real-time Updates (SSE)"
+              description="Live event streaming from the API"
+              enabled={settings.enableSSE}
+              onToggle={() => updateSettings({ enableSSE: !settings.enableSSE })}
+            />
+            <ToggleRow
+              label="Desktop Notifications"
+              description="Show notifications for alerts"
               enabled={settings.showDesktopNotifications}
-              onToggle={() => updateSettings({ showDesktopNotifications: !settings.showDesktopNotifications })} />
+              onToggle={() => updateSettings({ showDesktopNotifications: !settings.showDesktopNotifications })}
+            />
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Refresh Interval (seconds)</label>
-              <Input type="number" inputMode="numeric" min={5} max={300}
-                value={intervalStr} onChange={(e) => setIntervalStr(e.target.value)}
-                onBlur={handleIntervalBlur} className="h-11 text-base" />
-              <p className="text-[11px] text-muted-foreground">Poll interval for target statuses (5–300 s). Tap away to save.</p>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Refresh Interval (seconds)
+                </label>
+                {intervalSaved && (
+                  <span className="flex items-center gap-1 text-xs text-status-online">
+                    <CheckCircle className="h-3 w-3" />
+                    Saved
+                  </span>
+                )}
+              </div>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={5}
+                max={300}
+                value={intervalStr}
+                onChange={(e) => setIntervalStr(e.target.value)}
+                onBlur={handleIntervalBlur}
+                onKeyDown={handleIntervalKeyDown}
+                className="h-11 text-base"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Poll interval for target statuses (5–300 s). Press Enter or tap away to save.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -143,23 +205,39 @@ export default function SettingsPage() {
   )
 }
 
-function ToggleRow({ label, description, enabled, onToggle }: { label: string; description: string; enabled: boolean; onToggle: () => void }) {
+function ToggleRow({
+  label,
+  description,
+  enabled,
+  onToggle,
+}: {
+  label: string
+  description: string
+  enabled: boolean
+  onToggle: () => void
+}) {
   return (
     <div
       className="flex items-center justify-between rounded-xl border p-4 cursor-pointer active:bg-secondary/50 transition-colors select-none"
       style={{ minHeight: 64 }}
       onClick={onToggle}
-      role="switch" aria-checked={enabled} tabIndex={0}
+      role="switch"
+      aria-checked={enabled}
+      tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
     >
       <div className="flex-1 min-w-0 mr-4">
         <p className="text-sm font-medium">{label}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
       </div>
-      <div className="relative flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200"
-        style={{ backgroundColor: enabled ? "var(--color-primary)" : "var(--color-secondary)" }}>
-        <span className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200"
-          style={{ transform: enabled ? "translateX(20px)" : "translateX(4px)" }} />
+      <div
+        className="relative flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200"
+        style={{ backgroundColor: enabled ? "var(--color-primary)" : "var(--color-secondary)" }}
+      >
+        <span
+          className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+          style={{ transform: enabled ? "translateX(20px)" : "translateX(4px)" }}
+        />
       </div>
     </div>
   )
