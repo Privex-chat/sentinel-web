@@ -8,8 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatRelative(ts: number): string {
   const diff = Date.now() - ts
-  if (diff < 60000) return "just now"
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 60000)    return "just now"
+  if (diff < 3600000)  return `${Math.floor(diff / 60000)}m ago`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
   return `${Math.floor(diff / 86400000)}d ago`
 }
@@ -38,31 +38,26 @@ export function formatDate(ts: number): string {
 
 export function formatDateTime(ts: number): string {
   return new Date(ts).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
+    month:  "short",
+    day:    "numeric",
+    hour:   "2-digit",
     minute: "2-digit",
   })
 }
 
 export function formatNumber(num: number): string {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`
+  if (num >= 1_000)     return `${(num / 1_000).toFixed(1)}K`
   return num.toLocaleString()
 }
 
 export function parseEventData(data: string): Record<string, unknown> {
-  try {
-    return JSON.parse(data)
-  } catch {
-    return {}
-  }
+  try { return JSON.parse(data) } catch { return {} }
 }
 
 /**
  * Snap a pixel size to the nearest valid Discord CDN size.
  * Discord only accepts: 16, 32, 64, 128, 256, 512, 1024, 2048, 4096.
- * Passing any other value returns a broken image.
  */
 function snapToDiscordSize(px: number): number {
   const valid = [16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
@@ -78,7 +73,6 @@ export function getAvatarUrl(userId: string, avatarHash?: string | null, size = 
     const ext = avatarHash.startsWith("a_") ? "gif" : "png"
     return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${ext}?size=${discordSize}`
   }
-  // Default avatar: new pomelo system uses (userId >> 22) % 6
   try {
     const index = Number((BigInt(userId) >> 22n) % 6n)
     return `https://cdn.discordapp.com/embed/avatars/${index}.png`
@@ -87,7 +81,18 @@ export function getAvatarUrl(userId: string, avatarHash?: string | null, size = 
   }
 }
 
-/** Deterministic hue from a user ID string — used for avatar placeholder colour. */
+/**
+ * Returns the CDN URL for a user's profile banner, or null if no banner hash.
+ * Animated banners (hash starts with "a_") use .gif extension.
+ */
+export function getBannerUrl(userId: string, bannerHash?: string | null, size = 480): string | null {
+  if (!bannerHash) return null
+  const discordSize = snapToDiscordSize(size)
+  const ext = bannerHash.startsWith("a_") ? "gif" : "png"
+  return `https://cdn.discordapp.com/banners/${userId}/${bannerHash}.${ext}?size=${discordSize}`
+}
+
+/** Deterministic hue from a user ID string — used for avatar/banner placeholder colour. */
 export function userIdToHue(userId: string): number {
   let hash = 0
   for (let i = 0; i < userId.length; i++) {
