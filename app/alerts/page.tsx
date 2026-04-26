@@ -15,7 +15,7 @@ import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
 import { ALERT_TYPES } from "@/lib/types"
 import { formatDateTime } from "@/lib/utils"
-import { Bell, Plus, Trash2, Check, AlertTriangle, Volume2, VolumeX, RefreshCw } from "lucide-react"
+import { Bell, Plus, Trash2, Check, AlertTriangle, Volume2, VolumeX } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 
 export default function AlertsPage() {

@@ -87,7 +87,8 @@ export default function TargetLayout({ children }: { children: React.ReactNode }
     setSavingLabel(true)
     try {
       const trimmed = labelValue.trim()
-      await api.updateTarget(userId, { label: trimmed || undefined })
+      // Send null explicitly so an empty string clears the label in the DB
+      await api.updateTarget(userId, { label: trimmed || null })
       await refreshTargets()
     } catch (e) {
       console.error("Failed to update label:", e)

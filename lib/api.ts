@@ -171,7 +171,7 @@ export const api = {
     request<{ success: boolean }>(`/api/targets/${userId}`, { method: "DELETE" }),
   updateTarget: (
     userId: string,
-    data: { label?: string; notes?: string; priority?: number; active?: boolean }
+    data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean }
   ) =>
     request<Target>(`/api/targets/${userId}`, {
       method: "PATCH",
@@ -232,13 +232,6 @@ export const api = {
   getVoiceAnalytics: (userId: string, days = 30) =>
     request<VoiceHabitsData>(
       `/api/targets/${userId}/analytics/voice?days=${days}`,
-      {},
-      60_000
-    ),
-
-  getSocialGraph: (userId: string, days = 30) =>
-    request<{ connections: SocialConnection[]; totalInteractions: number }>(
-      `/api/targets/${userId}/analytics/social?days=${days}`,
       {},
       60_000
     ),

@@ -12,8 +12,6 @@ import { TipTooltip } from "@/components/onboarding/tip-tooltip"
 import { useSentinel } from "@/lib/context"
 import { useTour } from "@/components/onboarding/product-tour"
 import { Server, Key, RefreshCw, Zap, CheckCircle, XCircle, BookOpen, Sparkles, Brain } from "lucide-react"
-import { useApi } from "@/lib/hooks"
-import { api } from "@/lib/api"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -362,14 +360,8 @@ function ToggleRow({
 }
 
 function AiProviderCard() {
-  const { settings } = useSentinel()
-  const { data: status } = useApi(
-    () => api.getStatus(),
-    [settings.sentinelToken],
-    !!settings.sentinelToken
-  )
-
-  // /api/status doesn't expose AI config — show a helpful note instead
+  // AI config is server-side only — /api/status doesn't expose it.
+  // Just show a helpful note about the relevant env vars.
   return (
     <Card>
       <CardHeader>

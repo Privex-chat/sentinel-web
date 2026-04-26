@@ -45,7 +45,7 @@ interface SentinelContextValue {
   refreshTargets:  () => Promise<void>
   addTarget:       (userId: string, label?: string) => Promise<void>
   removeTarget:    (userId: string) => Promise<void>
-  updateTarget:    (userId: string, data: { label?: string; notes?: string; priority?: number; active?: boolean }) => Promise<void>
+  updateTarget:    (userId: string, data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean }) => Promise<void>
   isLoading:       boolean
   error:           string | null
 }
@@ -173,7 +173,7 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
   const updateTarget = useCallback(
     async (
       userId: string,
-      data: { label?: string; notes?: string; priority?: number; active?: boolean }
+      data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean }
     ) => {
       await api.updateTarget(userId, data)
       api.clearCacheForTarget(userId)

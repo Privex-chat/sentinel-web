@@ -32,6 +32,18 @@ export default function TargetsPage() {
     )
   })
 
+  // Show spinner while the initial connection attempt is in flight
+  if (isLoading) {
+    return (
+      <AppShell>
+        <Header title="Targets" description="Manage tracked users" />
+        <div className="flex items-center justify-center p-12">
+          <Spinner size={32} />
+        </div>
+      </AppShell>
+    )
+  }
+
   if (!settings.sentinelToken || !connected) {
     return (
       <AppShell>
@@ -42,17 +54,6 @@ export default function TargetsPage() {
             title="Not Connected"
             message="Connect to your Sentinel API in Settings to manage targets."
           />
-        </div>
-      </AppShell>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <AppShell>
-        <Header title="Targets" description="Manage tracked users" />
-        <div className="flex items-center justify-center p-12">
-          <Spinner size={32} />
         </div>
       </AppShell>
     )

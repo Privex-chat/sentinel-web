@@ -62,7 +62,8 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
     setSavingLabel(true)
     try {
       const trimmed = labelValue.trim()
-      await api.updateTarget(target.user_id, { label: trimmed || undefined })
+      // Send null explicitly so an empty string clears the label in the DB
+      await api.updateTarget(target.user_id, { label: trimmed || null })
       await refreshTargets()
     } catch (err) {
       console.error("Failed to update label:", err)
