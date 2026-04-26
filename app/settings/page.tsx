@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge"
 import { TipTooltip } from "@/components/onboarding/tip-tooltip"
 import { useSentinel } from "@/lib/context"
 import { useTour } from "@/components/onboarding/product-tour"
-import { Server, Key, RefreshCw, Zap, CheckCircle, XCircle, BookOpen, Sparkles } from "lucide-react"
+import { Server, Key, RefreshCw, Zap, CheckCircle, XCircle, BookOpen, Sparkles, Brain } from "lucide-react"
+import { useApi } from "@/lib/hooks"
+import { api } from "@/lib/api"
 import Link from "next/link"
 
 export default function SettingsPage() {
@@ -267,6 +269,9 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* AI Provider (readonly — configured server-side) */}
+        {connected && <AiProviderCard />}
+
         {/* Help & onboarding */}
         <Card>
           <CardHeader>
@@ -353,5 +358,54 @@ function ToggleRow({
         />
       </div>
     </div>
+  )
+}
+
+function AiProviderCard() {
+  const { settings } = useSentinel()
+  const { data: status } = useApi(
+    () => api.getStatus(),
+    [settings.sentinelToken],
+    !!settings.sentinelToken
+  )
+
+  // /api/status doesn't expose AI config — show a helpful note instead
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
+            <Brain className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-sm md:text-base">AI Features</CardTitle>
+            <CardDescription className="hidden sm:block">AI provider configuration</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+          <p className="text-sm font-medium">AI provider is configured server-side</p>
+          <p className="text-xs text-muted-foreground">
+            Set <code className="font-mono bg-secondary px-1 rounded">AI_PROVIDER</code> in your selfbot&apos;s{" "}
+            <code className="font-mono bg-secondary px-1 rounded">.env</code> to enable AI features:
+            relationship classification, message categorization, and daily intelligence briefs.
+          </p>
+          <div className="grid grid-cols-1 gap-1 pt-1 text-xs text-muted-foreground">
+            {[
+              { label: "AI_PROVIDER", desc: "none | ollama | openai | anthropic" },
+              { label: "AI_MODEL",    desc: "e.g. llama3.2, gpt-4o, claude-3-5-haiku-20241022" },
+              { label: "AI_API_KEY",  desc: "Required for openai / anthropic" },
+              { label: "AI_BASE_URL", desc: "Custom base URL (Ollama default: localhost:11434/v1)" },
+            ].map(({ label, desc }) => (
+              <div key={label} className="flex items-baseline gap-2">
+                <code className="font-mono bg-secondary px-1 rounded text-[10px] flex-shrink-0">{label}</code>
+                <span className="text-[10px]">{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

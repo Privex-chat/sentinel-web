@@ -15,7 +15,8 @@ import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
 import { ALERT_TYPES } from "@/lib/types"
 import { formatDateTime } from "@/lib/utils"
-import { Bell, Plus, Trash2, Check, AlertTriangle } from "lucide-react"
+import { Bell, Plus, Trash2, Check, AlertTriangle, Volume2, VolumeX, RefreshCw } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 
 export default function AlertsPage() {
   const { connected, settings } = useSentinel()
@@ -32,9 +33,20 @@ export default function AlertsPage() {
     !!settings.sentinelToken
   )
 
-  const handleCreate = async () => { await api.createAlertRule({ ruleType: newType }); refetchRules() }
-  const handleDelete = async (id: number) => { await api.deleteAlertRule(id); refetchRules() }
-  const handleAck    = async (id: number) => { await api.acknowledgeAlert(id); refetchHistory() }
+  const [digestMode,       setDigestMode]       = useState(false)
+  const [fatigueThreshold, setFatigueThreshold] = useState(20)
+
+  const handleCreate = async () => {
+    await api.createAlertRule({
+      ruleType: newType,
+      digestMode,
+      fatigueThreshold,
+    })
+    refetchRules()
+  }
+  const handleDelete     = async (id: number) => { await api.deleteAlertRule(id); refetchRules() }
+  const handleAck        = async (id: number) => { await api.acknowledgeAlert(id); refetchHistory() }
+  const handleUnsuppress = async (id: number) => { await api.unsuppressAlertRule(id); refetchRules() }
 
   if (!connected) {
     return (
@@ -77,7 +89,7 @@ export default function AlertsPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Create Alert Rule</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
                 <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={newType}
@@ -93,6 +105,25 @@ export default function AlertsPage() {
                     Add
                   </Button>
                 </div>
+                <div className="flex flex-wrap gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <Switch checked={digestMode} onChange={(e) => setDigestMode((e.target as HTMLInputElement).checked)} />
+                    <span>Digest mode</span>
+                    <span className="text-muted-foreground">(batch alerts)</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">Fatigue threshold:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={fatigueThreshold}
+                      onChange={(e) => setFatigueThreshold(parseInt(e.target.value) || 20)}
+                      className="w-16 h-7 rounded border bg-input px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <span className="text-muted-foreground">fires/24h</span>
+                  </label>
+                </div>
               </CardContent>
             </Card>
 
@@ -107,31 +138,12 @@ export default function AlertsPage() {
             ) : (
               <div className="space-y-2">
                 {rules.map((rule) => (
-                  <Card key={rule.id}>
-                    <div className="flex items-center justify-between p-4" style={{ minHeight: 56 }}>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
-                          <Bell className="h-4 w-4 text-destructive" />
-                        </div>
-                        <div>
-                          <Badge variant="destructive">{rule.rule_type.replace(/_/g, " ")}</Badge>
-                          {rule.target_id && (
-                            <p className="mt-0.5 text-[10px] text-muted-foreground font-mono">
-                              Target: {rule.target_id.slice(-8)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {/* Large touch target for delete */}
-                      <button
-                        onClick={() => handleDelete(rule.id)}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 active:bg-destructive/20 transition-colors"
-                        aria-label="Delete rule"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </Card>
+                  <AlertRuleCard
+                    key={rule.id}
+                    rule={rule}
+                    onDelete={handleDelete}
+                    onUnsuppress={handleUnsuppress}
+                  />
                 ))}
               </div>
             )}
@@ -189,5 +201,87 @@ export default function AlertsPage() {
         </Tabs>
       </div>
     </AppShell>
+  )
+}
+
+function AlertRuleCard({
+  rule,
+  onDelete,
+  onUnsuppress,
+}: {
+  rule: import("@/lib/types").AlertRule
+  onDelete: (id: number) => void
+  onUnsuppress: (id: number) => void
+}) {
+  const isSuppressed = rule.auto_suppressed === 1
+  const borderColor  = isSuppressed ? "var(--color-status-idle)" : undefined
+
+  return (
+    <Card style={borderColor ? { borderColor: `${borderColor}40` } : undefined}>
+      <div className="flex items-center justify-between p-4 gap-3" style={{ minHeight: 56 }}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
+            style={{ backgroundColor: isSuppressed ? "var(--color-status-idle)10" : "var(--color-destructive)10" }}
+          >
+            {isSuppressed
+              ? <VolumeX className="h-4 w-4" style={{ color: "var(--color-status-idle)" }} />
+              : <Bell     className="h-4 w-4 text-destructive" />
+            }
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge variant={isSuppressed ? "warning" : "destructive"}>
+                {rule.rule_type.replace(/_/g, " ")}
+              </Badge>
+              {isSuppressed && (
+                <Badge variant="warning" className="text-[9px]">Auto-suppressed</Badge>
+              )}
+              {rule.digest_mode === 1 && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded border text-muted-foreground border-border">
+                  Digest
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+              {rule.target_id && (
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  Target: …{rule.target_id.slice(-8)}
+                </span>
+              )}
+              {(rule.fire_count_24h ?? 0) > 0 && (
+                <span className="text-[10px] text-muted-foreground">
+                  {rule.fire_count_24h} fires today
+                </span>
+              )}
+              {(rule.fatigue_threshold ?? 0) > 0 && (
+                <span className="text-[10px] text-muted-foreground">
+                  threshold: {rule.fatigue_threshold}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {isSuppressed && (
+            <button
+              onClick={() => onUnsuppress(rule.id)}
+              className="flex h-9 items-center gap-1 rounded-lg px-2 text-xs text-status-idle hover:bg-status-idle/10 transition-colors"
+              title="Unsuppress"
+            >
+              <Volume2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Unsuppress</span>
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(rule.id)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+            aria-label="Delete rule"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </Card>
   )
 }

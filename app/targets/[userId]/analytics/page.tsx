@@ -2,6 +2,7 @@
 "use client"
 
 import { useParams } from "next/navigation"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Spinner } from "@/components/ui/spinner"
@@ -16,7 +17,9 @@ import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
 import { formatMs } from "@/lib/utils"
 import { STATUS_COLORS } from "@/lib/types"
-import { BarChart3, Activity, MessageSquare, Mic, Music, Users } from "lucide-react"
+import { BarChart3, Activity, MessageSquare, Mic, Music, Users, Tag, TrendingUp, RefreshCw, Sparkles } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 export default function AnalyticsPage() {
   const params = useParams()
@@ -36,6 +39,8 @@ export default function AnalyticsPage() {
           <TabsTrigger value="voice">Voice</TabsTrigger>
           <TabsTrigger value="music">Music</TabsTrigger>
           <TabsTrigger value="social">Social</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="baselines">Baselines</TabsTrigger>
         </TabsList>
       </div>
 
@@ -45,6 +50,8 @@ export default function AnalyticsPage() {
       <TabsContent value="voice"><VoiceTab userId={userId} /></TabsContent>
       <TabsContent value="music"><MusicTab userId={userId} /></TabsContent>
       <TabsContent value="social"><SocialTab userId={userId} /></TabsContent>
+      <TabsContent value="categories"><CategoriesTab userId={userId} /></TabsContent>
+      <TabsContent value="baselines"><BaselinesTab userId={userId} /></TabsContent>
     </Tabs>
   )
 }
@@ -445,64 +452,318 @@ function MusicTab({ userId }: { userId: string }) {
 
 // ── Social ────────────────────────────────────────────────────────────────────
 
+const AI_CLASS_COLORS: Record<string, string> = {
+  close_friend:                "var(--color-status-online)",
+  potential_romantic_interest: "var(--color-chart-4)",
+  acquaintance:                "var(--color-chart-3)",
+  colleague:                   "var(--color-chart-1)",
+  rival:                       "var(--color-destructive)",
+  mentor:                      "var(--color-chart-5)",
+  mentee:                      "var(--color-chart-5)",
+}
+
 function SocialTab({ userId }: { userId: string }) {
   const { settings, cacheVersion } = useSentinel()
-  const { data, loading, error } = useApi(
-    () => api.getSocialGraph(userId),
+  const [analyzing, setAnalyzing] = useState(false)
+
+  const { data, loading, error, refetch } = useApi(
+    () => api.getSocialRelationships(userId),
     [userId, cacheVersion, settings.sentinelToken],
     !!settings.sentinelToken
   )
 
+  const { data: changes } = useApi(
+    () => api.getSocialChanges(userId, 20),
+    [userId, settings.sentinelToken],
+    !!settings.sentinelToken
+  )
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true)
+    try {
+      await api.triggerSocialAnalysis(userId)
+      setTimeout(() => { refetch(); setAnalyzing(false) }, 3000)
+    } catch {
+      setAnalyzing(false)
+    }
+  }
+
   if (loading) return <Spinner />
   if (error)   return <EmptyState icon={Users} title="Error" message={error} />
-  if (!data || !data.connections?.length) return <EmptyState icon={Users} message="No social data yet" />
+  if (!data || !data.connections?.length) return (
+    <EmptyState icon={Users} message="No social data yet. Needs interaction history to build a graph." />
+  )
 
   const connections = data.connections.slice(0, 20)
   const maxScore    = connections[0]?.score || 1
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-2">
-        <StatCard value={data.connections.length} label="Connections"  color="var(--color-chart-1)" />
-        <StatCard value={data.totalInteractions}  label="Interactions" color="var(--color-chart-3)" />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <StatCard value={data.connections.length} label="Connections"   color="var(--color-chart-1)" />
+        <StatCard value={data.totalInteractions}  label="Interactions"  color="var(--color-chart-3)" />
+        <StatCard value={data.aiAnalyzedCount ?? 0} label="AI Analyzed" color="var(--color-chart-5)" />
       </div>
+
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">Top Connections</h3>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleAnalyze}
+          disabled={analyzing}
+          className="h-8 text-xs"
+        >
+          <Sparkles className={`mr-1.5 h-3.5 w-3.5 ${analyzing ? "animate-pulse" : ""}`} />
+          {analyzing ? "Analyzing…" : "Run AI Analysis"}
+        </Button>
+      </div>
+
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Top Connections</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {connections.map((conn, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-secondary/70"
-              style={{
-                backgroundColor: "var(--color-secondary)",
-                border: "1px solid var(--color-border)",
-                minHeight: 48,
-              }}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                  style={{
-                    background: "linear-gradient(135deg, var(--color-chart-1), var(--color-chart-5))",
-                    opacity: 0.5 + (conn.score / maxScore) * 0.5,
-                  }}
-                >
-                  {i + 1}
+        <CardContent className="p-0 divide-y">
+          {connections.map((conn, i) => {
+            const aiColor = conn.aiClassification
+              ? (AI_CLASS_COLORS[conn.aiClassification] || "var(--color-muted-foreground)")
+              : null
+            return (
+              <div
+                key={i}
+                className="flex items-center justify-between px-3 py-3 hover:bg-secondary/40 transition-colors"
+                style={{ minHeight: 52 }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                    style={{
+                      background: "linear-gradient(135deg, var(--color-chart-1), var(--color-chart-5))",
+                      opacity: 0.5 + (conn.score / maxScore) * 0.5,
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <DiscordId type="user" id={conn.userId} textSize="text-xs" />
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground capitalize">{conn.relationship}</span>
+                      {conn.aiClassification && aiColor && (
+                        <span
+                          className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+                          style={{ color: aiColor, borderColor: `${aiColor}30`, backgroundColor: `${aiColor}15` }}
+                        >
+                          {conn.aiClassification.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </div>
+                    {conn.aiConfidence !== null && conn.aiConfidence !== undefined && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <div className="h-1 w-16 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${Math.round(conn.aiConfidence * 100)}%`, backgroundColor: aiColor || "var(--color-chart-1)" }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-muted-foreground">{Math.round((conn.aiConfidence ?? 0) * 100)}%</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <DiscordId type="user" id={conn.userId} textSize="text-xs" />
-                  <p className="text-[10px] text-muted-foreground capitalize">{conn.relationship}</p>
+                <div className="text-right text-xs text-muted-foreground flex-shrink-0 ml-2">
+                  <p className="font-semibold" style={{ color: "var(--color-chart-1)" }}>
+                    {conn.score.toFixed(1)}
+                  </p>
+                  <p className="hidden sm:block text-[10px]">{conn.messageInteractions}msg</p>
                 </div>
               </div>
-              <div className="text-right text-xs text-muted-foreground flex-shrink-0 ml-2">
-                <p className="font-semibold" style={{ color: "var(--color-chart-1)" }}>
-                  {conn.score.toFixed(1)}
+            )
+          })}
+        </CardContent>
+      </Card>
+
+      {changes && changes.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Relationship Changes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {changes.slice(0, 10).map((ch, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg bg-secondary/40 px-3 py-2">
+                <div className="min-w-0">
+                  <DiscordId type="user" id={ch.other_user_id} textSize="text-[10px]" />
+                  <span
+                    className="text-[9px] font-semibold uppercase tracking-wide px-1 py-0.5 rounded"
+                    style={{ color: AI_CLASS_COLORS[ch.classification] || "var(--color-muted-foreground)" }}
+                  >
+                    {ch.classification.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                  {new Date(ch.recorded_at).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ── Categories ────────────────────────────────────────────────────────────────
+
+const CATEGORY_COLORS: Record<string, string> = {
+  gaming:    "var(--color-chart-1)",
+  music:     "var(--color-spotify)",
+  emotional: "var(--color-chart-4)",
+  humor:     "var(--color-status-idle)",
+  planning:  "var(--color-chart-3)",
+  question:  "var(--color-chart-5)",
+  general:   "var(--color-muted-foreground)",
+}
+
+function CategoriesTab({ userId }: { userId: string }) {
+  const { settings, cacheVersion } = useSentinel()
+  const { data, loading, error } = useApi(
+    () => api.getCategoryBreakdown(userId),
+    [userId, cacheVersion, settings.sentinelToken],
+    !!settings.sentinelToken
+  )
+
+  if (loading) return <Spinner />
+  if (error)   return <EmptyState icon={Tag} title="Error" message={error} />
+  if (!data || data.length === 0) return (
+    <EmptyState
+      icon={Tag}
+      title="No Categories Yet"
+      message="Message categories are computed by AI. Set AI_PROVIDER in your selfbot .env to enable automatic categorization."
+    />
+  )
+
+  const total = data.reduce((s, c) => s + c.count, 0)
+  const pieData = data.map((c) => ({
+    label: c.category,
+    value: c.count,
+    color: CATEGORY_COLORS[c.category] || "var(--color-muted-foreground)",
+  }))
+  const barData = data
+    .slice()
+    .sort((a, b) => b.count - a.count)
+    .map((c) => ({
+      label: c.category.charAt(0).toUpperCase() + c.category.slice(1),
+      value: c.count,
+      color: CATEGORY_COLORS[c.category] || "var(--color-muted-foreground)",
+    }))
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Distribution</CardTitle></CardHeader>
+          <CardContent>
+            <PieChart data={pieData} size={110} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Breakdown</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {data
+                .slice()
+                .sort((a, b) => b.count - a.count)
+                .map((c) => {
+                  const pct = total > 0 ? (c.count / total) * 100 : 0
+                  const color = CATEGORY_COLORS[c.category] || "var(--color-muted-foreground)"
+                  return (
+                    <div key={c.category} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="capitalize font-medium" style={{ color }}>{c.category}</span>
+                        <span className="text-muted-foreground">{c.count} ({pct.toFixed(1)}%)</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Category Counts</CardTitle></CardHeader>
+        <CardContent>
+          <BarChart data={barData} />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ── Baselines ─────────────────────────────────────────────────────────────────
+
+function BaselinesTab({ userId }: { userId: string }) {
+  const { settings } = useSentinel()
+  const [recomputing, setRecomputing] = useState(false)
+
+  const { data, loading, error, refetch } = useApi(
+    () => api.getBaselines(userId),
+    [userId, settings.sentinelToken],
+    !!settings.sentinelToken
+  )
+
+  const handleRecompute = async () => {
+    setRecomputing(true)
+    try {
+      await api.recomputeBaselines(userId)
+      setTimeout(() => { refetch(); setRecomputing(false) }, 2000)
+    } catch {
+      setRecomputing(false)
+    }
+  }
+
+  if (loading) return <Spinner />
+  if (error)   return <EmptyState icon={TrendingUp} title="Error" message={error} />
+  if (!data || data.length === 0) return (
+    <EmptyState
+      icon={TrendingUp}
+      title="No Baselines Computed"
+      message="Behavioral baselines require at least 7 days of data. Click Recompute to trigger computation."
+      action={
+        <Button size="sm" onClick={handleRecompute} disabled={recomputing}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${recomputing ? "animate-spin" : ""}`} />
+          {recomputing ? "Computing…" : "Recompute Baselines"}
+        </Button>
+      }
+    />
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">{data.length} metrics · {data[0]?.data_window_days ?? 30}-day window</p>
+        <Button size="sm" variant="outline" onClick={handleRecompute} disabled={recomputing} className="h-8 text-xs">
+          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${recomputing ? "animate-spin" : ""}`} />
+          {recomputing ? "Computing…" : "Recompute"}
+        </Button>
+      </div>
+      <Card className="overflow-hidden">
+        <div className="divide-y">
+          {data.map((b) => (
+            <div key={b.metric_name} className="flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors">
+              <div className="min-w-0">
+                <p className="text-sm font-medium capitalize">{b.metric_name.replace(/_/g, " ")}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Computed {new Date(b.computed_at).toLocaleDateString()}
                 </p>
-                <p className="hidden sm:block">{conn.messageInteractions}msg</p>
+              </div>
+              <div className="text-right ml-4 flex-shrink-0">
+                <p className="text-sm font-semibold" style={{ color: "var(--color-chart-1)" }}>
+                  {b.baseline_value.toFixed(2)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">±{b.std_deviation.toFixed(2)}</p>
               </div>
             </div>
           ))}
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

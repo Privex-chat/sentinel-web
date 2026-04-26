@@ -17,6 +17,14 @@ import type {
   MusicProfileData,
   VoiceHabitsData,
   SocialConnection,
+  RelationshipAnalysis,
+  RelationshipHistory,
+  DailyBrief,
+  BackfillProgress,
+  BaselineMetric,
+  TargetConfig,
+  MessageCategory,
+  EventCorrelation,
 } from "./types"
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -320,6 +328,9 @@ export const api = {
     targetId?: string
     ruleType: string
     condition?: Record<string, unknown>
+    digestMode?: boolean
+    fatigueThreshold?: number
+    compositeCondition?: Record<string, unknown>
   }) =>
     request<AlertRule>("/api/alerts/rules", {
       method: "POST",
@@ -333,6 +344,132 @@ export const api = {
   },
   acknowledgeAlert: (id: number) =>
     request<{ success: boolean }>(`/api/alerts/history/${id}/ack`, { method: "PATCH" }),
+
+  // Social graph (AI-enriched)
+  getSocialRelationships: (userId: string, days = 30) =>
+    request<{ connections: SocialConnection[]; totalInteractions: number; aiAnalyzedCount: number }>(
+      `/api/targets/${userId}/social/relationships?days=${days}`,
+      {},
+      60_000
+    ),
+  getSocialRelationship: (userId: string, otherId: string) =>
+    request<{ analysis: RelationshipAnalysis | null; history: RelationshipHistory[] }>(
+      `/api/targets/${userId}/social/relationships/${otherId}`,
+      {},
+      30_000
+    ),
+  triggerSocialAnalysis: (userId: string) =>
+    request<{ accepted: boolean; message: string }>(
+      `/api/targets/${userId}/social/analyze`,
+      { method: "POST" }
+    ),
+  getSocialChanges: (userId: string, limit = 50) =>
+    request<RelationshipHistory[]>(
+      `/api/targets/${userId}/social/changes?limit=${limit}`,
+      {},
+      30_000
+    ),
+
+  // Daily briefs
+  getDailyBriefs: (userId: string, limit = 30) =>
+    request<DailyBrief[]>(
+      `/api/targets/${userId}/briefs?limit=${limit}`,
+      {},
+      30_000
+    ),
+  getDailyBrief: (userId: string, date: string) =>
+    request<DailyBrief>(
+      `/api/targets/${userId}/briefs/${date}`,
+      {},
+      30_000
+    ),
+  generateBrief: (userId: string, date?: string) => {
+    const qs = date ? `?date=${date}` : ""
+    return request<{ success: boolean; date: string; brief_text: string }>(
+      `/api/targets/${userId}/briefs/generate${qs}`,
+      { method: "POST" }
+    )
+  },
+
+  // Backfill
+  getBackfillProgress: (userId: string) =>
+    request<BackfillProgress>(
+      `/api/targets/${userId}/backfill/progress`,
+      {},
+      15_000
+    ),
+  startBackfill: (userId: string) =>
+    request<{ accepted: boolean; message: string }>(
+      `/api/targets/${userId}/backfill/start`,
+      { method: "POST" }
+    ),
+
+  // Baselines
+  getBaselines: (userId: string) =>
+    request<BaselineMetric[]>(
+      `/api/targets/${userId}/analytics/baselines`,
+      {},
+      60_000
+    ),
+  recomputeBaselines: (userId: string) =>
+    request<{ success: boolean }>(
+      `/api/targets/${userId}/analytics/baselines/recompute`,
+      { method: "POST" }
+    ),
+
+  // Target config
+  getTargetConfig: (userId: string) =>
+    request<TargetConfig>(
+      `/api/targets/${userId}/config`,
+      {},
+      30_000
+    ),
+  updateTargetConfig: (userId: string, cfg: Partial<Omit<TargetConfig, "target_id" | "updated_at">>) =>
+    request<{ success: boolean }>(
+      `/api/targets/${userId}/config`,
+      { method: "PATCH", body: JSON.stringify(cfg) }
+    ),
+
+  // Category breakdown
+  getCategoryBreakdown: (userId: string) =>
+    request<MessageCategory[]>(
+      `/api/targets/${userId}/analytics/categories`,
+      {},
+      60_000
+    ),
+
+  // Correlations
+  getCorrelations: (userId: string, days = 30, windowHours = 0.5) =>
+    request<EventCorrelation[]>(
+      `/api/targets/${userId}/insights/correlations?days=${days}&window_hours=${windowHours}`,
+      {},
+      60_000
+    ),
+
+  // Timeline range
+  getTimelineRange: (userId: string, from: string, to: string) =>
+    request<{
+      presenceSessions: unknown[]
+      activitySessions: unknown[]
+      voiceSessions: unknown[]
+      eventCount: number
+      dateRange: { from: string; to: string; days: number }
+    }>(
+      `/api/targets/${userId}/timeline/range?from=${from}&to=${to}`,
+      {},
+      30_000
+    ),
+
+  // Suppressed alerts
+  getSuppressedAlerts: () =>
+    request<AlertRule[]>("/api/alerts/rules/suppressed", {}, 10_000),
+  unsuppressAlertRule: (id: number) =>
+    request<{ success: boolean }>(`/api/alerts/rules/${id}/unsuppress`, { method: "POST" }),
+  toggleAlertRule: (id: number, enabled: boolean) =>
+    request<{ success: boolean }>(`/api/alerts/rules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    }),
 
   // Export
   exportData: (userId: string) =>

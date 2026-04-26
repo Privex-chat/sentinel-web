@@ -12,7 +12,10 @@ import { EVENT_COLORS, EVENT_LABELS } from "@/lib/types"
 import {
   Activity, Gamepad2, Music, Mic, AlertTriangle,
   Clock, MessageSquare, Ghost, Trash2, Edit,
+  Download, Users, Sparkles,
 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import Link from "next/link"
 
 export default function TargetOverviewPage() {
   const params = useParams()
@@ -34,6 +37,18 @@ export default function TargetOverviewPage() {
   )
   const { data: anomalies } = useApi(
     () => api.getAnomalies(userId),
+    [userId, settings.sentinelToken],
+    !!settings.sentinelToken
+  )
+
+  const { data: backfill } = useApi(
+    () => api.getBackfillProgress(userId),
+    [userId, settings.sentinelToken],
+    !!settings.sentinelToken
+  )
+
+  const { data: socialData } = useApi(
+    () => api.getSocialRelationships(userId),
     [userId, settings.sentinelToken],
     !!settings.sentinelToken
   )
@@ -197,6 +212,78 @@ export default function TargetOverviewPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Backfill progress compact indicator */}
+      {backfill && backfill.summary.total > 0 && (() => {
+        const { summary } = backfill
+        const pct = Math.round(((summary.completed + summary.skipped) / summary.total) * 100)
+        const isActive = summary.in_progress > 0
+        return (
+          <Link href={`/targets/${userId}/backfill`}>
+            <Card className="hover:bg-secondary/30 transition-colors cursor-pointer border-chart-1/20">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-xs font-medium">
+                    <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                    Backfill
+                    {isActive && (
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-idle opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-status-idle" />
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {summary.totalMessagesFound.toLocaleString()} msgs · {pct}%
+                  </span>
+                </div>
+                <Progress value={pct} className="h-1.5" />
+                {summary.failed > 0 && (
+                  <p className="mt-1 text-[10px] text-destructive">{summary.failed} channels failed</p>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
+      {/* Top AI-classified relationships */}
+      {socialData && socialData.connections.some((c) => c.aiClassification) && (() => {
+        const aiConns = socialData.connections
+          .filter((c) => c.aiClassification)
+          .slice(0, 3)
+        return (
+          <Link href={`/targets/${userId}/analytics?tab=social`}>
+            <Card className="hover:bg-secondary/30 transition-colors cursor-pointer border-chart-5/20">
+              <CardHeader className="pb-2 pt-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Sparkles className="h-4 w-4 text-chart-5" />
+                  AI Relationships
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pb-3 space-y-1.5">
+                {aiConns.map((conn, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg bg-secondary/40 px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Users className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                      <span className="font-mono text-[10px] text-muted-foreground truncate">…{conn.userId.slice(-8)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+                        style={{ color: "var(--color-chart-5)", borderColor: "var(--color-chart-5)30", backgroundColor: "var(--color-chart-5)10" }}>
+                        {conn.aiClassification!.replace(/_/g, " ")}
+                      </span>
+                      {conn.aiConfidence !== null && (
+                        <span className="text-[10px] text-muted-foreground">{Math.round((conn.aiConfidence ?? 0) * 100)}%</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
 
       {target?.notes && (
         <Card className="border-chart-1/20">

@@ -127,6 +127,103 @@ export interface AlertRule {
   condition: string
   enabled: number
   created_at: number
+  fire_count_24h: number
+  auto_suppressed: number
+  fatigue_threshold: number
+  digest_mode: number
+  composite_condition: string | null
+}
+
+export interface RelationshipAnalysis {
+  id: number
+  target_id: string
+  other_user_id: string
+  classification: string
+  confidence: number
+  reasoning: string[]
+  analyzed_at: number
+  data_window_start: number
+  data_window_end: number
+}
+
+export interface RelationshipHistory {
+  id: number
+  target_id: string
+  other_user_id: string
+  classification: string
+  confidence: number
+  recorded_at: number
+}
+
+export interface DailyBrief {
+  id: number
+  target_id: string
+  date: string
+  brief_text: string
+  generated_at: number
+}
+
+export interface BackfillChannelRow {
+  id: number
+  target_id: string
+  guild_id: string
+  channel_id: string
+  status: "pending" | "in_progress" | "completed" | "failed" | "skipped" | "paused"
+  messages_found: number
+  oldest_message_id: string | null
+  started_at: number | null
+  completed_at: number | null
+  error: string | null
+}
+
+export interface BackfillProgress {
+  summary: {
+    total: number
+    pending: number
+    in_progress: number
+    completed: number
+    failed: number
+    skipped: number
+    paused: number
+    totalMessagesFound: number
+  }
+  channels: BackfillChannelRow[]
+}
+
+export interface BaselineMetric {
+  id: number
+  target_id: string
+  metric_name: string
+  baseline_value: number
+  std_deviation: number
+  computed_at: number
+  data_window_days: number
+}
+
+export interface TargetConfig {
+  target_id: string
+  social_weight_messages: number
+  social_weight_reactions: number
+  social_weight_voice_hours: number
+  social_weight_mentions: number
+  anomaly_z_threshold: number
+  updated_at?: number
+}
+
+export interface MessageCategory {
+  message_id: string
+  target_id: string
+  category: string
+  count: number
+}
+
+export interface EventCorrelation {
+  triggerType: string
+  followType: string
+  occurrences: number
+  avgDelayMs: number
+  lift: number
+  confidence: number
 }
 
 export interface AlertHistoryItem {
@@ -204,6 +301,10 @@ export interface SocialConnection {
   voiceTime: number
   mentionCount: number
   relationship: string
+  aiClassification: string | null
+  aiConfidence: number | null
+  aiReasoning: string[]
+  analyzedAt: number | null
 }
 
 export interface Anomaly {

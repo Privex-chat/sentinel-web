@@ -13,12 +13,15 @@ import { useApi, useDebounce } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
 import { formatDateTime } from "@/lib/utils"
-import { MessageSquare, Search, Trash2, Edit, Ghost } from "lucide-react"
+import { MessageSquare, Search, Trash2, Edit, Ghost, Tag } from "lucide-react"
+
+const MESSAGE_CATEGORIES = ["gaming", "music", "emotional", "humor", "planning", "question", "general"] as const
 
 export default function MessagesPage() {
   const params = useParams()
   const userId = params.userId as string
   const [search, setSearch] = useState("")
+  const [category, setCategory] = useState("")
 
   return (
     <Tabs defaultValue="all">
@@ -30,16 +33,31 @@ export default function MessagesPage() {
       </TabsList>
 
       <TabsContent value="all">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search messages..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search messages..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Tag className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-10 rounded-md border bg-input px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">All Categories</option>
+              {MESSAGE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <AllMessages userId={userId} search={search} />
+        <AllMessages userId={userId} search={search} category={category} />
       </TabsContent>
       <TabsContent value="deleted"><DeletedMessages userId={userId} /></TabsContent>
       <TabsContent value="edited"><EditedMessages userId={userId} /></TabsContent>
@@ -48,16 +66,17 @@ export default function MessagesPage() {
   )
 }
 
-function AllMessages({ userId, search }: { userId: string; search: string }) {
+function AllMessages({ userId, search, category }: { userId: string; search: string; category: string }) {
   const { settings } = useSentinel()
   const debouncedSearch = useDebounce(search, 300)
 
   const params: Record<string, string> = { limit: "100" }
-  if (debouncedSearch) params.search = debouncedSearch
+  if (debouncedSearch) params.search   = debouncedSearch
+  if (category)        params.category = category
 
   const { data, loading, error } = useApi(
     () => api.getMessages(userId, params),
-    [userId, debouncedSearch, settings.sentinelToken],
+    [userId, debouncedSearch, category, settings.sentinelToken],
     !!settings.sentinelToken
   )
 

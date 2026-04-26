@@ -23,6 +23,8 @@ import {
   Pencil,
   Check,
   X,
+  FileText,
+  Settings2,
 } from "lucide-react"
 
 const tabs = [
@@ -31,8 +33,10 @@ const tabs = [
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Messages",  href: "/messages",  icon: MessageSquare },
   { name: "Insights",  href: "/insights",  icon: Brain },
+  { name: "Briefs",    href: "/briefs",    icon: FileText },
   { name: "Alerts",    href: "/alerts",    icon: Bell },
   { name: "Profile",   href: "/profile",   icon: User },
+  { name: "Config",    href: "/config",    icon: Settings2 },
 ]
 
 export default function TargetLayout({ children }: { children: React.ReactNode }) {

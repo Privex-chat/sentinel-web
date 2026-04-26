@@ -12,7 +12,7 @@ import { useApi } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
 import { formatRelative, formatDate } from "@/lib/utils"
-import { Brain, Moon, Calendar, AlertTriangle } from "lucide-react"
+import { Brain, Moon, Calendar, AlertTriangle, GitBranch } from "lucide-react"
 
 export default function InsightsPage() {
   const params = useParams()
@@ -20,12 +20,18 @@ export default function InsightsPage() {
 
   return (
     <Tabs defaultValue="overview">
-      <TabsList className="mb-6">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="sleep">Sleep</TabsTrigger>
-        <TabsTrigger value="routine">Routine</TabsTrigger>
-        <TabsTrigger value="anomalies">Anomalies</TabsTrigger>
-      </TabsList>
+      <div
+        className="overflow-x-auto mb-6 -mx-3 px-3 md:mx-0 md:px-0"
+        style={{ scrollbarWidth: "none" }}
+      >
+        <TabsList className="inline-flex min-w-max md:flex">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sleep">Sleep</TabsTrigger>
+          <TabsTrigger value="routine">Routine</TabsTrigger>
+          <TabsTrigger value="anomalies">Anomalies</TabsTrigger>
+          <TabsTrigger value="correlations">Correlations</TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="overview">
         <div className="space-y-6">
@@ -36,6 +42,7 @@ export default function InsightsPage() {
       <TabsContent value="sleep"><SleepScheduleCard userId={userId} /></TabsContent>
       <TabsContent value="routine"><RoutineCard userId={userId} /></TabsContent>
       <TabsContent value="anomalies"><AnomaliesCard userId={userId} /></TabsContent>
+      <TabsContent value="correlations"><CorrelationsTab userId={userId} /></TabsContent>
     </Tabs>
   )
 }
@@ -261,5 +268,92 @@ function AnomaliesCard({ userId, limit }: { userId: string; limit?: number }) {
         })}
       </CardContent>
     </Card>
+  )
+}
+
+// ── Correlations ──────────────────────────────────────────────────────────────
+
+function CorrelationsTab({ userId }: { userId: string }) {
+  const { settings } = useSentinel()
+  const { data, loading, error } = useApi(
+    () => api.getCorrelations(userId),
+    [userId, settings.sentinelToken],
+    !!settings.sentinelToken
+  )
+
+  if (loading) return <Spinner />
+  if (error)   return <EmptyState icon={GitBranch} title="Error" message={error} />
+  if (!data || data.length === 0) return (
+    <EmptyState
+      icon={GitBranch}
+      title="No Correlations Detected"
+      message="Correlations are detected when two event types consistently follow each other within a short time window. Needs more data."
+    />
+  )
+
+  return (
+    <div className="space-y-3">
+      {data.map((corr, i) => {
+        const liftColor = corr.lift >= 3
+          ? "var(--color-status-online)"
+          : corr.lift >= 1.5
+            ? "var(--color-status-idle)"
+            : "var(--color-muted-foreground)"
+        const delayMin = corr.avgDelayMs / 60_000
+        const delayLabel = delayMin < 1
+          ? `${Math.round(corr.avgDelayMs / 1000)}s`
+          : `${delayMin.toFixed(1)}m`
+
+        return (
+          <Card key={i}>
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">
+                    When{" "}
+                    <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-secondary text-foreground">
+                      {corr.triggerType.replace(/_/g, " ")}
+                    </span>{" "}
+                    happens,{" "}
+                    <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-secondary text-foreground">
+                      {corr.followType.replace(/_/g, " ")}
+                    </span>{" "}
+                    follows {corr.occurrences}× within ~{delayLabel}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span
+                    className="text-sm font-bold"
+                    style={{ color: liftColor }}
+                  >
+                    {corr.lift.toFixed(1)}×
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">lift</span>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1 w-20 rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.round(corr.confidence * 100)}%`,
+                        backgroundColor: liftColor,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {Math.round(corr.confidence * 100)}% confidence
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  avg {delayLabel} delay
+                </span>
+              </div>
+            </div>
+          </Card>
+        )
+      })}
+    </div>
   )
 }
