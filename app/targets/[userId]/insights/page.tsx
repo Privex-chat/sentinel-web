@@ -11,7 +11,7 @@ import { Heatmap } from "@/components/charts/heatmap"
 import { useApi } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatRelative, formatDate } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 import { Brain, Moon, Calendar, AlertTriangle, GitBranch } from "lucide-react"
 
 export default function InsightsPage() {
@@ -283,7 +283,20 @@ function CorrelationsTab({ userId }: { userId: string }) {
 
   if (loading) return <Spinner />
   if (error)   return <EmptyState icon={GitBranch} title="Error" message={error} />
-  if (!data || data.length === 0) return (
+
+  // Filter out any malformed entries from the API before rendering
+  const validData = (data ?? []).filter(
+    (c) =>
+      c != null &&
+      typeof c.triggerType === "string" &&
+      typeof c.followType === "string" &&
+      typeof c.occurrences === "number" &&
+      typeof c.avgDelayMs === "number" &&
+      typeof c.lift === "number" &&
+      typeof c.confidence === "number"
+  )
+
+  if (validData.length === 0) return (
     <EmptyState
       icon={GitBranch}
       title="No Correlations Detected"
@@ -293,15 +306,22 @@ function CorrelationsTab({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-3">
-      {data.map((corr, i) => {
-        const liftColor = corr.lift >= 3
+      {validData.map((corr, i) => {
+        const lift       = corr.lift ?? 0
+        const confidence = corr.confidence ?? 0
+        const avgDelayMs = corr.avgDelayMs ?? 0
+        const triggerType = corr.triggerType ?? "unknown"
+        const followType  = corr.followType  ?? "unknown"
+
+        const liftColor = lift >= 3
           ? "var(--color-status-online)"
-          : corr.lift >= 1.5
+          : lift >= 1.5
             ? "var(--color-status-idle)"
             : "var(--color-muted-foreground)"
-        const delayMin = corr.avgDelayMs / 60_000
+
+        const delayMin = avgDelayMs / 60_000
         const delayLabel = delayMin < 1
-          ? `${Math.round(corr.avgDelayMs / 1000)}s`
+          ? `${Math.round(avgDelayMs / 1000)}s`
           : `${delayMin.toFixed(1)}m`
 
         return (
@@ -312,11 +332,11 @@ function CorrelationsTab({ userId }: { userId: string }) {
                   <p className="text-sm font-medium">
                     When{" "}
                     <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-secondary text-foreground">
-                      {corr.triggerType.replace(/_/g, " ")}
+                      {triggerType.replace(/_/g, " ")}
                     </span>{" "}
                     happens,{" "}
                     <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-secondary text-foreground">
-                      {corr.followType.replace(/_/g, " ")}
+                      {followType.replace(/_/g, " ")}
                     </span>{" "}
                     follows {corr.occurrences}× within ~{delayLabel}
                   </p>
@@ -326,7 +346,7 @@ function CorrelationsTab({ userId }: { userId: string }) {
                     className="text-sm font-bold"
                     style={{ color: liftColor }}
                   >
-                    {corr.lift.toFixed(1)}×
+                    {lift.toFixed(1)}×
                   </span>
                   <span className="text-[10px] text-muted-foreground">lift</span>
                 </div>
@@ -337,13 +357,13 @@ function CorrelationsTab({ userId }: { userId: string }) {
                     <div
                       className="h-full rounded-full"
                       style={{
-                        width: `${Math.round(corr.confidence * 100)}%`,
+                        width: `${Math.round(confidence * 100)}%`,
                         backgroundColor: liftColor,
                       }}
                     />
                   </div>
                   <span className="text-[10px] text-muted-foreground">
-                    {Math.round(corr.confidence * 100)}% confidence
+                    {Math.round(confidence * 100)}% confidence
                   </span>
                 </div>
                 <span className="text-[10px] text-muted-foreground">
