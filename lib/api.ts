@@ -403,6 +403,11 @@ export const api = {
       `/api/targets/${userId}/backfill/start`,
       { method: "POST" }
     ),
+  resetBackfill: (userId: string, mode: "new_channels" | "full_reset") =>
+    request<{ accepted: boolean; message: string }>(
+      `/api/targets/${userId}/backfill/custom`,
+      { method: "POST", body: JSON.stringify({ mode }) }
+    ),
 
   // Baselines
   getBaselines: (userId: string) =>

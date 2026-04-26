@@ -13,7 +13,7 @@ import { useApi } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
 import { formatDateTime } from "@/lib/utils"
-import { Download, Play, RotateCcw, CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react"
+import { Download, Play, RotateCcw, CheckCircle, XCircle, Clock, AlertTriangle, RefreshCw, PlusCircle } from "lucide-react"
 import type { BackfillChannelRow } from "@/lib/types"
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -30,6 +30,7 @@ export default function BackfillPage() {
   const userId = params.userId as string
   const { settings } = useSentinel()
   const [starting, setStarting] = useState(false)
+  const [customMode, setCustomMode] = useState<"new_channels" | "full_reset" | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
   const { data, loading, error, refetch } = useApi(
@@ -47,6 +48,18 @@ export default function BackfillPage() {
       console.error("Failed to start backfill:", e)
     } finally {
       setStarting(false)
+    }
+  }
+
+  const handleCustom = async (mode: "new_channels" | "full_reset") => {
+    setCustomMode(mode)
+    try {
+      await api.resetBackfill(userId, mode)
+      await refetch()
+    } catch (e) {
+      console.error(`Failed to run custom backfill (${mode}):`, e)
+    } finally {
+      setCustomMode(null)
     }
   }
 
@@ -84,20 +97,42 @@ export default function BackfillPage() {
               <Download className="h-4 w-4 text-muted-foreground" />
               Backfill Progress
             </CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {hasFailed && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleStart}
-                  disabled={starting}
+                  disabled={starting || !!customMode}
                   className="h-8 text-xs"
                 >
                   <RotateCcw className={`mr-1.5 h-3.5 w-3.5 ${starting ? "animate-spin" : ""}`} />
                   Retry Failed
                 </Button>
               )}
-              <Button size="sm" onClick={handleStart} disabled={starting} className="h-8 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleCustom("new_channels")}
+                disabled={starting || !!customMode}
+                className="h-8 text-xs"
+                title="Re-fetch profile and add any newly joined mutual servers"
+              >
+                <PlusCircle className={`mr-1.5 h-3.5 w-3.5 ${customMode === "new_channels" ? "animate-spin" : ""}`} />
+                {customMode === "new_channels" ? "Scanning…" : "Scan New Servers"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleCustom("full_reset")}
+                disabled={starting || !!customMode}
+                className="h-8 text-xs text-destructive hover:text-destructive"
+                title="Reset all progress and re-scan every channel from scratch"
+              >
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${customMode === "full_reset" ? "animate-spin" : ""}`} />
+                {customMode === "full_reset" ? "Resetting…" : "Full Reset"}
+              </Button>
+              <Button size="sm" onClick={handleStart} disabled={starting || !!customMode} className="h-8 text-xs">
                 <Play className={`mr-1.5 h-3.5 w-3.5 ${starting ? "animate-spin" : ""}`} />
                 {starting ? "Starting…" : "Start Backfill"}
               </Button>
