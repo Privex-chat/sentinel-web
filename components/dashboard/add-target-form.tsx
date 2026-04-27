@@ -7,18 +7,20 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useSentinel } from "@/lib/context"
 import { validateDiscordUserId } from "@/lib/utils"
-import { UserPlus, X } from "lucide-react"
+import { UserPlus, X, AlertTriangle } from "lucide-react"
 
 interface AddTargetFormProps {
   onClose: () => void
 }
 
 export function AddTargetForm({ onClose }: AddTargetFormProps) {
-  const { addTarget } = useSentinel()
+  const { addTarget, targets } = useSentinel()
   const [userId, setUserId] = useState("")
   const [label, setLabel] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const tooManyTargets = targets.length >= 5
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +59,14 @@ export function AddTargetForm({ onClose }: AddTargetFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
+          {tooManyTargets && (
+            <div className="flex items-start gap-2 rounded-md border border-yellow-500/40 bg-yellow-500/10 px-3 py-2.5 text-xs text-yellow-600 dark:text-yellow-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                <strong>Risky:</strong> You already have {targets.length} targets. Monitoring many users simultaneously increases the chance of Discord flagging your account. The selfbot enforces a 1-per-hour rate limit on new targets.
+              </span>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Input
               placeholder="Discord User ID (17-20 digits)"

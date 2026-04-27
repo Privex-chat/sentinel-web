@@ -126,7 +126,14 @@ async function request<T>(
 
       if (!res.ok) {
         const body = await res.text().catch(() => "")
-        throw new Error(`API ${res.status}: ${body.slice(0, 200)}`)
+        let message = `API ${res.status}`
+        try {
+          const parsed = JSON.parse(body)
+          if (parsed?.error) message = parsed.error
+        } catch {
+          if (body) message += `: ${body.slice(0, 200)}`
+        }
+        throw new Error(message)
       }
 
       const text = await res.text()
