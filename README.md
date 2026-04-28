@@ -46,6 +46,29 @@ The web dashboard is a full‑featured alternative to the Vencord plugin. It con
 
 ---
 
+## Some Screenshots
+
+Sentinel Dashboard :
+<p align="center">
+  <img src="https://github.com/Privex-chat/sentinel/blob/c62e84f5327fa67a89e065f2b20e88e879814284/assets/Sentinel_Dashboard_full.PNG" alt="Sentinel Dashboard" width="720">
+</p>
+
+Sentinel Basic stats :
+<p align="center">
+  <img src="https://github.com/Privex-chat/sentinel/blob/c62e84f5327fa67a89e065f2b20e88e879814284/assets/Sentinel_Dashboard_Basic_Stats.PNG" alt="Sentinel Dashboard basic stats" width="720">
+</p>
+
+Sentinel Live target feed :
+<p align="center">
+  <img src="https://github.com/Privex-chat/sentinel/blob/c62e84f5327fa67a89e065f2b20e88e879814284/assets/Sentinel_Dashboard_Live_Feed.PNG" alt="Sentinel Live target event feed" width="720">
+</p>
+
+Sentinel Targets Grid :
+<p align="center">
+  <img src="https://github.com/Privex-chat/sentinel/blob/c62e84f5327fa67a89e065f2b20e88e879814284/assets/Sentinel_Targets_Grid.PNG" alt="Sentinel Dashboard Targets grid" width="720">
+</p>
+---
+
 ## 🚀 Using the Hosted App
 
 1. Open **[sentinel-panel.vercel.app](https://sentinel-panel.vercel.app)**
