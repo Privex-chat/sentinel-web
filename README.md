@@ -1,11 +1,10 @@
 <p align="center">
   <img src="web-demo.gif" alt="sentinel-web dashboard demo" width="720">
 </p>
-
 <table align="center">
   <tr>
     <td>
-      <img src="https://github.com/Privex-chat/sentinel/blob/10876a3b78636b7005dbef21938a0fe70108a6ce/assets/cropped_circle_image.png" alt="Sentinel Logo" width="140" style="vertical-align: middle;">
+      <img src="https://github.com/Privex-chat/sentinel/blob/10876a3b78636b7005dbef21938a0fe70108a6ce/assets/cropped_circle_image.png" alt="Sentinel Logo" width="120" style="vertical-align: middle;">
     </td>
     <td>
       <h1>🌐 sentinel-web</h1>
