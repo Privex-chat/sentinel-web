@@ -1,7 +1,7 @@
 <p align="center">
   <img src="web-demo.gif" alt="sentinel-web dashboard demo" width="720">
 </p>
-
+Part of the [Sentinel](https://github.com/Privex-chat/sentinel) project.
 <table align="center">
   <tr>
     <td>
