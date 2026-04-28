@@ -32,7 +32,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 border-b px-4">
         <img
-          src="/cropped_circle_image.png.png"
+          src="/cropped_circle_image.png"
           alt="Sentinel logo"
           width={36}
           height={36}
