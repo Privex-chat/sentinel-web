@@ -447,7 +447,7 @@ function MusicTab({ userId }: { userId: string }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SOCIAL GRAPH — Force-directed node graph with profile enrichment
+// SOCIAL GRAPH — Draggable force graph with spring physics
 // ══════════════════════════════════════════════════════════════════════════════
 
 const AI_CLASS_COLORS: Record<string, string> = {
@@ -517,134 +517,43 @@ function useRelatedProfiles(
   return profiles
 }
 
-// ── Hook: force-directed layout simulation ─────────────────────────────────
+// ── Helper: generate initial node positions ──────────────────────────────────
 
-function useForceLayout(
+function generateInitialNodes(
   centerUserId: string,
   connections: SocialConnection[],
   w: number,
   h: number
 ): ForceNode[] {
-  const [nodes, setNodes] = useState<ForceNode[]>([])
-  const nodesRef = useRef<ForceNode[]>([])
-  const rafRef   = useRef<number>(0)
-  const keyRef   = useRef("")
+  const cx        = w / 2
+  const cy        = h / 2
+  const maxScore  = connections[0]?.score || 1
+  const spread    = Math.min(w, h) * 0.30
 
-  useEffect(() => {
-    if (!w || !h) return
-
-    cancelAnimationFrame(rafRef.current)
-
-    const displayed = connections.slice(0, 14)
-    const newKey = `${centerUserId}:${displayed.map((c) => c.userId).join(",")}:${w}:${h}`
-    if (keyRef.current === newKey) return
-    keyRef.current = newKey
-
-    const cx        = w / 2
-    const cy        = h / 2
-    const maxScore  = displayed[0]?.score || 1
-    const spread    = Math.min(w, h) * 0.30
-
-    // Seed nodes in a staggered circle
-    const init: ForceNode[] = [
-      {
-        id: centerUserId,
-        x: cx, y: cy,
+  return [
+    {
+      id: centerUserId,
+      x: cx, y: cy,
+      vx: 0, vy: 0,
+      radius: 34,
+      isCenter: true,
+      score: maxScore,
+    },
+    ...connections.map((conn, i) => {
+      const angle  = (i / Math.max(connections.length, 1)) * Math.PI * 2 - Math.PI / 2
+      const jitter = 0.80 + Math.random() * 0.40
+      const r      = 13 + (conn.score / maxScore) * 15
+      return {
+        id: conn.userId,
+        x: cx + Math.cos(angle) * spread * jitter,
+        y: cy + Math.sin(angle) * spread * jitter,
         vx: 0, vy: 0,
-        radius: 34,
-        isCenter: true,
-        score: maxScore,
-      },
-      ...displayed.map((conn, i) => {
-        const angle  = (i / Math.max(displayed.length, 1)) * Math.PI * 2 - Math.PI / 2
-        const jitter = 0.80 + Math.random() * 0.40
-        const r      = 13 + (conn.score / maxScore) * 15
-        return {
-          id: conn.userId,
-          x: cx + Math.cos(angle) * spread * jitter,
-          y: cy + Math.sin(angle) * spread * jitter,
-          vx: 0, vy: 0,
-          radius: r,
-          isCenter: false,
-          score: conn.score,
-        }
-      }),
-    ]
-
-    nodesRef.current = init
-    setNodes([...init])
-
-    let iter = 0
-    const MAX = 300
-
-    const tick = () => {
-      iter++
-      if (iter > MAX) {
-        setNodes([...nodesRef.current])
-        return
+        radius: r,
+        isCenter: false,
+        score: conn.score,
       }
-
-      const ns    = nodesRef.current
-      const alpha = Math.pow(Math.max(0, 1 - iter / MAX), 1.4)
-
-      for (let i = 1; i < ns.length; i++) {
-        const n  = ns[i]
-        const cn = ns[0] // center node is always index 0
-
-        // Spring attraction toward center
-        const dx   = cn.x - n.x
-        const dy   = cn.y - n.y
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1
-        const targetDist = 105 + (1 - n.score / maxScore) * 90
-        const sf   = (dist - targetDist) * 0.016 * alpha
-        n.vx += (dx / dist) * sf
-        n.vy += (dy / dist) * sf
-
-        // Repulsion between every pair of nodes
-        for (let j = 0; j < ns.length; j++) {
-          if (i === j) continue
-          const o  = ns[j]
-          const ex = n.x - o.x
-          const ey = n.y - o.y
-          const ed = Math.sqrt(ex * ex + ey * ey) || 0.1
-          const minD = n.radius + o.radius + 22
-          if (ed < minD) {
-            const strength = ((minD - ed) / minD) * 0.9 * Math.max(0.08, alpha)
-            n.vx += (ex / ed) * strength * minD * 0.13
-            n.vy += (ey / ed) * strength * minD * 0.13
-          }
-        }
-
-        // Soft boundary
-        const mg = n.radius + 18
-        if (n.x < mg)     n.vx += (mg - n.x)     * 0.35
-        if (n.x > w - mg) n.vx -= (n.x - w + mg) * 0.35
-        if (n.y < mg)     n.vy += (mg - n.y)     * 0.35
-        if (n.y > h - mg) n.vy -= (n.y - h + mg) * 0.35
-
-        // Integrate + dampen
-        n.vx *= 0.70
-        n.vy *= 0.70
-        n.x  += n.vx
-        n.y  += n.vy
-      }
-
-      if (iter % 4 === 0 || iter >= MAX - 1) {
-        setNodes([...nodesRef.current])
-      }
-
-      rafRef.current = requestAnimationFrame(tick)
-    }
-
-    rafRef.current = requestAnimationFrame(tick)
-
-    return () => {
-      cancelAnimationFrame(rafRef.current)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centerUserId, connections.slice(0, 14).map((c) => c.userId).join(","), w, h])
-
-  return nodes
+    }),
+  ]
 }
 
 // ── NodeCircle SVG element ────────────────────────────────────────────────────
@@ -656,7 +565,7 @@ function NodeCircle({
   isDimmed,
   onMouseEnter,
   onMouseLeave,
-  onClick,
+  onMouseDown,
 }: {
   node: ForceNode
   profile: ProfileSnapshot | null
@@ -664,7 +573,7 @@ function NodeCircle({
   isDimmed: boolean
   onMouseEnter: (e: React.MouseEvent<SVGGElement>) => void
   onMouseLeave: () => void
-  onClick: () => void
+  onMouseDown: (e: React.MouseEvent<SVGGElement>, nodeId: string) => void
 }) {
   const hue      = userIdToHue(node.id)
   const avatarUrl = profile?.avatar_hash
@@ -686,7 +595,7 @@ function NodeCircle({
       style={{ cursor: node.isCenter ? "default" : "pointer", opacity }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      onClick={onClick}
+      onMouseDown={(e) => onMouseDown(e, node.id)}
     >
       <defs>
         <clipPath id={clipId}>
@@ -783,11 +692,18 @@ function SocialForceGraph({
   targetProfile: ProfileSnapshot | null
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [size, setSize]         = useState({ w: 620, h: 460 })
-  const [tooltip, setTooltip]   = useState<{ connId: string; mx: number; my: number } | null>(null)
+  const [size, setSize] = useState({ w: 620, h: 460 })
+  const [tooltip, setTooltip] = useState<{ connId: string; mx: number; my: number } | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [dragNodeId, setDragNodeId] = useState<string | null>(null)
 
-  // Measure container width responsively
+  // Graph nodes state and ref
+  const [nodes, setNodes] = useState<ForceNode[]>([])
+  const nodesRef = useRef<ForceNode[]>([])
+  const dragRef = useRef<{ nodeId: string; startX: number; startY: number } | null>(null)
+  const animFrameRef = useRef<number>(0)
+
+  // Resize observer
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -797,29 +713,162 @@ function SocialForceGraph({
       const w = Math.max(300, rect.width)
       setSize({ w, h: Math.min(520, Math.max(370, Math.round(w * 0.64))) })
     }
-
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
+  // Initialize / reset simulation when connections or size change
+  useEffect(() => {
+    if (!size.w || !size.h) return
+
+    const displayed = connections.slice(0, 14)
+    const initial = generateInitialNodes(userId, displayed, size.w, size.h)
+    nodesRef.current = initial
+    setNodes([...initial])
+  }, [userId, connections, size.w, size.h])
+
+  // Physics simulation loop
+  useEffect(() => {
+    cancelAnimationFrame(animFrameRef.current)
+
+    const tick = () => {
+      const ns = nodesRef.current
+      if (!ns.length) return
+
+      const cx = size.w / 2
+      const cy = size.h / 2
+      const centerNode = ns[0] // always index 0
+      const maxScore = centerNode.score || 1
+
+      for (let i = 0; i < ns.length; i++) {
+        const node = ns[i]
+
+        // Skip center node (fixed)
+        if (node.isCenter) {
+          // Keep center at exact center (optional: could also be draggable, but not requested)
+          node.x = cx
+          node.y = cy
+          node.vx = 0
+          node.vy = 0
+          continue
+        }
+
+        // If this node is being dragged, set position to mouse and skip forces
+        if (dragNodeId === node.id) {
+          // Position already set via mouse; we only zero out velocity
+          node.vx = 0
+          node.vy = 0
+          continue
+        }
+
+        // ── Forces ──
+        // Spring attraction toward center
+        const dx = cx - node.x
+        const dy = cy - node.y
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1
+        const targetDist = 105 + (1 - node.score / maxScore) * 90   // farther for weaker connections
+        const springForce = (dist - targetDist) * 0.004              // spring constant
+        node.vx += (dx / dist) * springForce
+        node.vy += (dy / dist) * springForce
+
+        // Repulsion between all non-center nodes
+        for (let j = 1; j < ns.length; j++) {
+          if (i === j) continue
+          const other = ns[j]
+          const ex = node.x - other.x
+          const ey = node.y - other.y
+          const ed = Math.sqrt(ex * ex + ey * ey) || 0.1
+          const minD = node.radius + other.radius + 20
+
+          if (ed < minD) {
+            const strength = ((minD - ed) / minD) * 0.08
+            const dirX = ex / ed
+            const dirY = ey / ed
+            node.vx += dirX * strength * minD
+            node.vy += dirY * strength * minD
+          }
+        }
+
+        // Boundary soft containment
+        const margin = node.radius + 15
+        if (node.x < margin) node.vx += (margin - node.x) * 0.3
+        if (node.x > size.w - margin) node.vx -= (node.x - size.w + margin) * 0.3
+        if (node.y < margin) node.vy += (margin - node.y) * 0.3
+        if (node.y > size.h - margin) node.vy -= (node.y - size.h + margin) * 0.3
+
+        // Damping
+        node.vx *= 0.85
+        node.vy *= 0.85
+
+        // Integration
+        node.x += node.vx
+        node.y += node.vy
+      }
+
+      // Update React state for re-render
+      setNodes([...ns])
+      animFrameRef.current = requestAnimationFrame(tick)
+    }
+
+    animFrameRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(animFrameRef.current)
+  }, [dragNodeId, size.w, size.h, userId, connections])
+
+  // ── Mouse event handlers for dragging ───
+  const handleNodeMouseDown = (e: React.MouseEvent<SVGGElement>, nodeId: string) => {
+    if (nodeId === userId) return // don't drag center
+    e.preventDefault()
+    e.stopPropagation()
+
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    // Find the node to get current position
+    const node = nodesRef.current.find(n => n.id === nodeId)
+    if (!node) return
+
+    // Record drag start info
+    dragRef.current = {
+      nodeId,
+      startX: node.x - (e.clientX - rect.left),
+      startY: node.y - (e.clientY - rect.top),
+    }
+    setDragNodeId(nodeId)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!dragNodeId || !dragRef.current) return
+    e.preventDefault()
+
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    // Update node position directly (physics tick will see dragNodeId and skip forces)
+    const node = nodesRef.current.find(n => n.id === dragNodeId)
+    if (node) {
+      node.x = mouseX + dragRef.current.startX
+      node.y = mouseY + dragRef.current.startY
+    }
+  }
+
+  const handleMouseUp = () => {
+    if (dragNodeId) {
+      setDragNodeId(null)
+      dragRef.current = null
+    }
+  }
+
   const displayed   = connections.slice(0, 14)
-  const nodes       = useForceLayout(userId, displayed, size.w, size.h)
   const maxScore    = displayed[0]?.score || 1
   const allProfiles = useMemo(
     () => ({ ...relatedProfiles, [userId]: targetProfile }),
     [relatedProfiles, targetProfile, userId]
   )
-
-  const nodeMap = useMemo(() => {
-    const m: Record<string, ForceNode> = {}
-    nodes.forEach((n) => { m[n.id] = n })
-    return m
-  }, [nodes])
-
-  // Which node is hovered/selected (for dimming others)
-  const activeId = selected
 
   return (
     <div
@@ -829,7 +878,14 @@ function SocialForceGraph({
         background: "radial-gradient(ellipse at 50% 40%, oklch(0.20 0.04 270 / 0.5) 0%, oklch(0.145 0 0) 70%)",
       }}
     >
-      <svg width={size.w} height={size.h} style={{ display: "block" }}>
+      <svg
+        width={size.w}
+        height={size.h}
+        style={{ display: "block", touchAction: "none" }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
         <defs>
           <radialGradient id="sg-bg" cx="50%" cy="45%" r="55%">
             <stop offset="0%"   stopColor="var(--color-primary)" stopOpacity="0.06" />
@@ -840,19 +896,19 @@ function SocialForceGraph({
 
         {/* ── Edges ── */}
         {displayed.map((conn) => {
-          const src = nodeMap[userId]
-          const tgt = nodeMap[conn.userId]
+          const src = nodes.find(n => n.id === userId)
+          const tgt = nodes.find(n => n.id === conn.userId)
           if (!src || !tgt) return null
 
           const edgeColor = conn.aiClassification
             ? (AI_CLASS_COLORS[conn.aiClassification] || "var(--color-border)")
             : "var(--color-muted-foreground)"
 
+          const activeId = selected
           const isActiveEdge = !activeId || activeId === conn.userId || activeId === userId
           const edgeOpacity  = isActiveEdge ? 0.65 : 0.10
           const thickness    = 1 + (conn.score / maxScore) * 2.8
 
-          // Slight curve
           const mx  = (src.x + tgt.x) / 2
           const my  = (src.y + tgt.y) / 2
           const len = Math.sqrt((tgt.x - src.x) ** 2 + (tgt.y - src.y) ** 2) || 1
@@ -876,8 +932,8 @@ function SocialForceGraph({
         {/* ── Nodes ── */}
         {nodes.map((node) => {
           const profile      = allProfiles[node.id] || null
-          const isHighlighted = activeId === node.id || node.isCenter
-          const isDimmed      = !!activeId && !isHighlighted
+          const isHighlighted = selected === node.id || node.isCenter
+          const isDimmed      = !!selected && !isHighlighted
 
           return (
             <NodeCircle
@@ -896,11 +952,9 @@ function SocialForceGraph({
               }}
               onMouseLeave={() => {
                 setTooltip(null)
-                setSelected(null)
+                if (!dragNodeId) setSelected(null)
               }}
-              onClick={() => {
-                if (!node.isCenter) setSelected((s) => (s === node.id ? null : node.id))
-              }}
+              onMouseDown={handleNodeMouseDown}
             />
           )
         })}
@@ -910,7 +964,7 @@ function SocialForceGraph({
           const profile      = allProfiles[node.id]
           const name         = profile?.global_name || profile?.username || null
           const labelY       = node.y + node.radius + 13
-          const isDimmed     = !!activeId && activeId !== node.id && !node.isCenter
+          const isDimmed     = !!selected && selected !== node.id && !node.isCenter
           const textOpacity  = isDimmed ? 0.20 : 1
 
           return (
@@ -1089,7 +1143,6 @@ function SocialTab({ userId }: { userId: string }) {
     !!settings.sentinelToken
   )
 
-  // Collect IDs for profile fetching
   const connectionIds = useMemo(
     () => (data?.connections || []).slice(0, 14).map((c) => c.userId),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1125,14 +1178,12 @@ function SocialTab({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-5">
-      {/* Stats row */}
       <div className="grid grid-cols-3 gap-2">
         <StatCard value={data.connections.length}  label="Connections"  color="var(--color-chart-1)" />
         <StatCard value={data.totalInteractions}   label="Interactions" color="var(--color-chart-3)" />
         <StatCard value={data.aiAnalyzedCount ?? 0} label="AI Analyzed" color="var(--color-chart-5)" />
       </div>
 
-      {/* Controls */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 p-1">
           <button
@@ -1171,7 +1222,6 @@ function SocialTab({ userId }: { userId: string }) {
         </Button>
       </div>
 
-      {/* ── Graph View ── */}
       {viewMode === "graph" && (
         <SocialForceGraph
           userId={userId}
@@ -1181,7 +1231,6 @@ function SocialTab({ userId }: { userId: string }) {
         />
       )}
 
-      {/* ── List View ── */}
       {viewMode === "list" && (
         <Card>
           <CardContent className="p-0 divide-y">
@@ -1203,7 +1252,6 @@ function SocialTab({ userId }: { userId: string }) {
                   style={{ minHeight: 56 }}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {/* Rank */}
                     <div
                       className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
                       style={{
@@ -1214,7 +1262,6 @@ function SocialTab({ userId }: { userId: string }) {
                       {i + 1}
                     </div>
 
-                    {/* Avatar */}
                     <div
                       className="h-9 w-9 flex-shrink-0 rounded-full overflow-hidden border border-border"
                       style={{ background: `hsl(${hue}, 50%, 22%)` }}
@@ -1233,7 +1280,6 @@ function SocialTab({ userId }: { userId: string }) {
                       )}
                     </div>
 
-                    {/* Name + ID */}
                     <div className="min-w-0">
                       {name && (
                         <p className="text-sm font-semibold truncate leading-tight">{name}</p>
@@ -1282,7 +1328,6 @@ function SocialTab({ userId }: { userId: string }) {
         </Card>
       )}
 
-      {/* Relationship change history */}
       {changes && changes.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
