@@ -34,8 +34,8 @@ export function Sidebar() {
         <img
           src="/logo.png"
           alt="Sentinel logo"
-          width={32}
-          height={32}
+          width={48}
+          height={48}
           className="rounded-lg flex-shrink-0"
         />
         <span className="text-lg font-semibold tracking-tight">Sentinel</span>
