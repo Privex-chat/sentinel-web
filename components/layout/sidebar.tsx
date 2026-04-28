@@ -11,7 +11,6 @@ import {
   Bell,
   Settings,
   Activity,
-  Shield,
   BookOpen,
 } from "lucide-react"
 
@@ -32,9 +31,13 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 z-40 hidden md:flex h-screen w-60 flex-col border-r bg-background">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 border-b px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-          <Shield className="h-4 w-4 text-primary" />
-        </div>
+        <img
+          src="/logo.png"
+          alt="Sentinel logo"
+          width={32}
+          height={32}
+          className="rounded-lg flex-shrink-0"
+        />
         <span className="text-lg font-semibold tracking-tight">Sentinel</span>
       </div>
 
