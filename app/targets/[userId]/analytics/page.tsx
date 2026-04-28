@@ -1038,12 +1038,13 @@ function SocialForceGraph({
           : "var(--color-muted-foreground)"
 
         const ttW = 210
-        // Use tooltip position if available, else fall back when only pinned
-        const ttX = tooltip?.connId === activeId
-          ? Math.min(tooltip.mx + 14, size.w - ttW - 6)
+        // Determine if we have a valid position from the hover tooltip
+        const hasPosition = tooltip !== null && tooltip.connId === activeId
+        const ttX = hasPosition
+          ? Math.min(tooltip!.mx + 14, size.w - ttW - 6)
           : 20
-        const ttY = tooltip?.connId === activeId
-          ? Math.max(8, tooltip.my - 70)
+        const ttY = hasPosition
+          ? Math.max(8, tooltip!.my - 70)
           : 20
 
         return (
