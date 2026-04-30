@@ -25,6 +25,8 @@ import type {
   TargetConfig,
   MessageCategory,
   EventCorrelation,
+  RuntimeConfig,
+  RuntimeKey,
 } from "./types"
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -483,6 +485,15 @@ export const api = {
   // Export
   exportData: (userId: string) =>
     request<Record<string, unknown>>(`/api/export/${userId}`),
+
+  // Runtime config (hot-swap settings from the web UI)
+  getRuntimeConfig: () =>
+    request<RuntimeConfig>("/api/config", {}, 0),
+  updateRuntimeConfig: (key: RuntimeKey, value: string) =>
+    request<{ success: boolean }>("/api/config", {
+      method: "PATCH",
+      body: JSON.stringify({ key, value }),
+    }),
 
   // Cache management
   clearCache:              () => cache.clear(),

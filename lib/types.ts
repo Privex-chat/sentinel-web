@@ -1,5 +1,31 @@
 /* lib/types.ts */
 
+export type RuntimeKey =
+  | "DISCORD_TOKEN"
+  | "ALERT_WEBHOOK_URL"
+  | "CRITICAL_WEBHOOK_URL"
+  | "AI_PROVIDER"
+  | "AI_MODEL"
+  | "AI_API_KEY"
+  | "AI_BASE_URL"
+  | "AI_ANALYSIS_INTERVAL_MS"
+  | "AI_CATEGORIZATION_BATCH_SIZE"
+  | "SUPABASE_URL"
+  | "SUPABASE_SERVICE_KEY"
+  | "SUPABASE_SYNC_INTERVAL_MS"
+  | "BACKFILL_ENABLED"
+  | "BACKFILL_MAX_DAYS"
+  | "BACKFILL_MAX_MESSAGES_PER_CHANNEL"
+  | "ALERT_DIGEST_MODE"
+  | "ALERT_DIGEST_INTERVAL_MS"
+  | "ALERT_FATIGUE_THRESHOLD"
+  | "BRIEF_GENERATION_TIME"
+  | "PROFILE_POLL_INTERVAL_MS"
+  | "STATUS_POLL_INTERVAL_MS"
+  | "DAILY_SUMMARY_INTERVAL_MS"
+
+export type RuntimeConfig = Record<RuntimeKey, string>
+
 export interface Target {
   user_id: string
   added_at: number
