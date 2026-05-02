@@ -72,8 +72,27 @@ function lsSet(key: string, value: string): void {
 
 // ── Provider ───────────────────────────────────────────────────────────────────
 
+/** Read localStorage synchronously so the very first render has the token. */
+function hydrateFromLocalStorage(): Settings {
+  if (typeof window === "undefined") return INITIAL_SETTINGS
+
+  const url      = lsGet(LS_KEYS.url)
+  const token    = lsGet(LS_KEYS.token)
+  const interval = lsGet(LS_KEYS.interval)
+  const sse      = lsGet(LS_KEYS.sse)
+  const notifs   = lsGet(LS_KEYS.notifs)
+
+  return {
+    sentinelUrl:              url   || INITIAL_SETTINGS.sentinelUrl,
+    sentinelToken:            token || INITIAL_SETTINGS.sentinelToken,
+    dashboardRefreshInterval: interval ? (parseInt(interval, 10) || 30) : 30,
+    enableSSE:                sse    !== null ? sse    === "true" : true,
+    showDesktopNotifications: notifs !== null ? notifs === "true" : true,
+  }
+}
+
 export function SentinelProvider({ children }: { children: ReactNode }) {
-  const [settings,       setSettings]       = useState<Settings>(INITIAL_SETTINGS)
+  const [settings,       setSettings]       = useState<Settings>(hydrateFromLocalStorage)
   const [hydrated,       setHydrated]       = useState(false)
   const [connected,      setConnected]      = useState(false)
   const [status,         setStatus]         = useState<SentinelStatus | null>(null)
@@ -86,59 +105,32 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
 
   const cacheDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Hydrate settings from localStorage (+ Electron desktop bridge) ──────
+  // ── Hydrate from Electron bridge (if available) ────────────────────────────
+  // localStorage was already read synchronously in the useState initializer.
+  // This effect handles the Electron desktop bridge as a secondary source:
+  // the preload exposes window.sentinel.getApiInfo() which fetches config
+  // directly from the main process — more reliable than localStorage on the
+  // custom sentinel:// protocol origin.
   useEffect(() => {
     let cancelled = false
 
-    async function hydrate() {
-      const updates: Partial<Settings> = {}
+    const bridge = (window as unknown as Record<string, unknown>).sentinel as
+      | { getApiInfo?: () => Promise<{ port: number; authToken: string }> }
+      | undefined
 
-      // In the Electron desktop app the preload exposes window.sentinel with
-      // a getApiInfo() method that returns { port, authToken } directly from
-      // the main process.  This is more reliable than localStorage because
-      // the custom sentinel:// protocol may not persist storage across
-      // sessions the same way http:// origins do.
-      const bridge = (window as unknown as Record<string, unknown>).sentinel as
-        | { getApiInfo?: () => Promise<{ port: number; authToken: string }> }
-        | undefined
-
-      if (bridge?.getApiInfo) {
-        try {
-          const info = await bridge.getApiInfo()
-          if (!cancelled && info?.port && info?.authToken) {
-            updates.sentinelUrl   = `http://localhost:${info.port}`
-            updates.sentinelToken = info.authToken
-          }
-        } catch {
-          // fall through to localStorage
+    if (bridge?.getApiInfo) {
+      bridge.getApiInfo().then((info) => {
+        if (!cancelled && info?.port && info?.authToken) {
+          setSettings((s) => ({
+            ...s,
+            sentinelUrl:   `http://localhost:${info.port}`,
+            sentinelToken: info.authToken,
+          }))
         }
-      }
-
-      // Standard localStorage hydration (fills anything the bridge didn't)
-      const savedUrl      = lsGet(LS_KEYS.url)
-      const savedToken    = lsGet(LS_KEYS.token)
-      const savedInterval = lsGet(LS_KEYS.interval)
-      const savedSSE      = lsGet(LS_KEYS.sse)
-      const savedNotifs   = lsGet(LS_KEYS.notifs)
-
-      if (!updates.sentinelUrl   && savedUrl)   updates.sentinelUrl   = savedUrl
-      if (!updates.sentinelToken && savedToken)  updates.sentinelToken = savedToken
-      if (savedInterval) {
-        const parsed = parseInt(savedInterval, 10)
-        if (!isNaN(parsed) && parsed >= 5 && parsed <= 300) {
-          updates.dashboardRefreshInterval = parsed
-        }
-      }
-      if (savedSSE   !== null) updates.enableSSE                = savedSSE === "true"
-      if (savedNotifs !== null) updates.showDesktopNotifications = savedNotifs === "true"
-
-      if (!cancelled && Object.keys(updates).length > 0) {
-        setSettings((s) => ({ ...s, ...updates }))
-      }
-      if (!cancelled) setHydrated(true)
+      }).catch(() => { /* localStorage values already applied */ })
     }
 
-    hydrate()
+    if (!cancelled) setHydrated(true)
     return () => { cancelled = true }
   }, [])
 

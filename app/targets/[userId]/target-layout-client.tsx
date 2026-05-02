@@ -47,6 +47,22 @@ export default function TargetLayoutClient({ children }: { children: React.React
   const userId   = useTargetUserId()
   const { targetStatuses, targets, refreshTargets } = useSentinel()
 
+  // Prevent React hydration mismatch: the static export was built with
+  // userId="_" but the client resolves the real userId from the URL.
+  // Render nothing until mounted so server HTML (with "_") is replaced
+  // cleanly by client HTML (with real userId).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
+        </div>
+      </AppShell>
+    )
+  }
+
   const status       = targetStatuses[userId]
   const target       = targets.find((t) => t.user_id === userId)
   const presence     = status?.presence
