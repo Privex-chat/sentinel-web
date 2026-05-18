@@ -10,13 +10,15 @@ import { DiscordId } from "@/components/ui/discord-id"
 import { useApi, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatDateTime, getAvatarUrl, getBannerUrl, userIdToHue } from "@/lib/utils"
+import { formatDateTimeInTz, getAvatarUrl, getBannerUrl, userIdToHue } from "@/lib/utils"
 import type { ProfileSnapshot } from "@/lib/types"
 import { User, LinkIcon, ExternalLink } from "lucide-react"
 
 export default function ProfilePage() {
   const userId = useTargetUserId()
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const tz = target?.timezone ?? null
 
   const { data, loading, error } = useApi(
     () => api.getProfileHistory(userId),
@@ -47,7 +49,7 @@ export default function ProfilePage() {
       {/* ── Current Profile (Discord-style card) ── */}
       <div>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current Profile</h2>
-        <CurrentProfileCard snapshot={currentProfile} userId={userId} />
+        <CurrentProfileCard snapshot={currentProfile} userId={userId} tz={tz} />
       </div>
 
       {/* ── Snapshot History (horizontal scrollable) ── */}
@@ -61,7 +63,7 @@ export default function ProfilePage() {
             style={{ scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }}
           >
             {changedSnapshots.map(({ snapshot, changes }, i) => (
-              <SnapshotCard key={i} snapshot={snapshot} changes={changes} userId={userId} />
+              <SnapshotCard key={i} snapshot={snapshot} changes={changes} userId={userId} tz={tz} />
             ))}
           </div>
         </div>
@@ -104,7 +106,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <p className="mt-1 text-[9px] text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(snap.timestamp)}
+                      {formatDateTimeInTz(snap.timestamp, tz)}
                     </p>
                   </a>
                 ))}
@@ -210,7 +212,7 @@ function ConnectedAccountsBadges({ json }: { json: string }) {
 
 // ── CurrentProfileCard ─────────────────────────────────────────────────────────
 
-function CurrentProfileCard({ snapshot, userId }: { snapshot: ProfileSnapshot; userId: string }) {
+function CurrentProfileCard({ snapshot, userId, tz }: { snapshot: ProfileSnapshot; userId: string; tz: string | null }) {
   const bannerUrl = getBannerUrl(userId, snapshot.banner_hash)
   const avatarUrl = getAvatarUrl(userId, snapshot.avatar_hash, 256)
   const hue       = userIdToHue(userId)
@@ -277,7 +279,7 @@ function CurrentProfileCard({ snapshot, userId }: { snapshot: ProfileSnapshot; u
         )}
 
         <p className="mt-3 text-[10px] text-muted-foreground">
-          Snapshot captured {formatDateTime(snapshot.timestamp)}
+          Snapshot captured {formatDateTimeInTz(snapshot.timestamp, tz)}
         </p>
       </CardContent>
     </Card>
@@ -290,10 +292,12 @@ function SnapshotCard({
   snapshot,
   changes,
   userId,
+  tz,
 }: {
   snapshot: ProfileSnapshot
   changes: string[]
   userId: string
+  tz: string | null
 }) {
   const [bioExpanded, setBioExpanded] = useState(false)
   const bannerUrl = getBannerUrl(userId, snapshot.banner_hash)
@@ -373,7 +377,7 @@ function SnapshotCard({
           ))}
         </div>
 
-        <p className="mt-2 text-[9px] text-muted-foreground">{formatDateTime(snapshot.timestamp)}</p>
+        <p className="mt-2 text-[9px] text-muted-foreground">{formatDateTimeInTz(snapshot.timestamp, tz)}</p>
       </div>
     </div>
   )

@@ -10,8 +10,9 @@ import { Heatmap } from "@/components/charts/heatmap"
 import { useApi, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatDate } from "@/lib/utils"
-import { Brain, Moon, Calendar, AlertTriangle, GitBranch } from "lucide-react"
+import { formatDate, tzLabel, getTimezoneOffsetMinutes } from "@/lib/utils"
+import { Brain, Moon, Calendar, AlertTriangle, GitBranch, Globe } from "lucide-react"
+import { useState } from "react"
 
 export default function InsightsPage() {
   const userId = useTargetUserId()
@@ -46,7 +47,11 @@ export default function InsightsPage() {
 }
 
 function SleepScheduleCard({ userId, compact }: { userId: string; compact?: boolean }) {
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const targetTz = target?.timezone ?? null
+  const [viewMyTz, setViewMyTz] = useState(false)
+
   const { data, loading, error } = useApi(
     () => api.getSleepSchedule(userId),
     [userId, settings.sentinelToken],
@@ -57,16 +62,51 @@ function SleepScheduleCard({ userId, compact }: { userId: string; compact?: bool
   if (error) return <EmptyState icon={Moon} title="Error" message={error} />
   if (!data || !data.estimatedBedtime) return <EmptyState icon={Moon} message="Not enough data to estimate sleep schedule" />
 
-  const bedHour = parseFloat(data.estimatedBedtime.split(":")[0]) + parseFloat(data.estimatedBedtime.split(":")[1]) / 60
-  const wakeHour = parseFloat(data.estimatedWakeTime?.split(":")[0] || "8") + parseFloat(data.estimatedWakeTime?.split(":")[1] || "0") / 60
+  const targetOffsetMin = getTimezoneOffsetMinutes(targetTz)
+  const myOffsetMin = -new Date().getTimezoneOffset()
+  const shiftMin = viewMyTz ? (myOffsetMin - targetOffsetMin) : 0
+
+  const shiftTimeStr = (timeStr: string | null): string | null => {
+    if (!timeStr || shiftMin === 0) return timeStr
+    const [h, m] = timeStr.split(":").map(Number)
+    const totalMin = h * 60 + m + shiftMin
+    const shifted = ((totalMin % 1440) + 1440) % 1440
+    return `${String(Math.floor(shifted / 60)).padStart(2, "0")}:${String(shifted % 60).padStart(2, "0")}`
+  }
+
+  const bedtime = shiftTimeStr(data.estimatedBedtime)!
+  const wakeTime = shiftTimeStr(data.estimatedWakeTime)
+
+  const bedHour = parseFloat(bedtime.split(":")[0]) + parseFloat(bedtime.split(":")[1]) / 60
+  const wakeHour = parseFloat(wakeTime?.split(":")[0] || "8") + parseFloat(wakeTime?.split(":")[1] || "0") / 60
+
+  const tzDisplay = viewMyTz
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : (targetTz ? tzLabel(targetTz) : "Server")
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Moon className="h-4 w-4" />
-          Sleep Schedule
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Moon className="h-4 w-4" />
+            Sleep Schedule
+          </CardTitle>
+          {targetTz && (
+            <button
+              onClick={() => setViewMyTz(v => !v)}
+              className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors ${
+                viewMyTz
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+              }`}
+              title={viewMyTz ? "Showing in your timezone" : "Showing in target's timezone"}
+            >
+              <Globe className="h-3 w-3" />
+              {tzDisplay}
+            </button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-6">
@@ -125,11 +165,11 @@ function SleepScheduleCard({ userId, compact }: { userId: string; compact?: bool
           <div className="space-y-3">
             <div>
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Bedtime</p>
-              <p className="text-xl font-semibold">{data.estimatedBedtime}</p>
+              <p className="text-xl font-semibold">{bedtime}</p>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Wake Time</p>
-              <p className="text-xl font-semibold">{data.estimatedWakeTime}</p>
+              <p className="text-xl font-semibold">{wakeTime ?? "N/A"}</p>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg Sleep</p>
@@ -144,19 +184,19 @@ function SleepScheduleCard({ userId, compact }: { userId: string; compact?: bool
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
                 <p className="text-[10px] text-muted-foreground">Weekday Bed</p>
-                <p className="font-medium">{data.weekdayBedtime || "N/A"}</p>
+                <p className="font-medium">{shiftTimeStr(data.weekdayBedtime) || "N/A"}</p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground">Weekend Bed</p>
-                <p className="font-medium">{data.weekendBedtime || "N/A"}</p>
+                <p className="font-medium">{shiftTimeStr(data.weekendBedtime) || "N/A"}</p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground">Weekday Wake</p>
-                <p className="font-medium">{data.weekdayWakeTime || "N/A"}</p>
+                <p className="font-medium">{shiftTimeStr(data.weekdayWakeTime) || "N/A"}</p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground">Weekend Wake</p>
-                <p className="font-medium">{data.weekendWakeTime || "N/A"}</p>
+                <p className="font-medium">{shiftTimeStr(data.weekendWakeTime) || "N/A"}</p>
               </div>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
@@ -178,7 +218,11 @@ function SleepScheduleCard({ userId, compact }: { userId: string; compact?: bool
 }
 
 function RoutineCard({ userId }: { userId: string }) {
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const targetTz = target?.timezone ?? null
+  const [viewMyTz, setViewMyTz] = useState(false)
+
   const { data, loading, error } = useApi(
     () => api.getRoutine(userId),
     [userId, settings.sentinelToken],
@@ -191,12 +235,37 @@ function RoutineCard({ userId }: { userId: string }) {
 
   const heatmapData = data.weeklyGrid ? data.weeklyGrid.map((row) => row.map((b) => b.eventCount)) : []
 
+  const targetOffsetMin = getTimezoneOffsetMinutes(targetTz)
+  const myOffsetMin = -new Date().getTimezoneOffset()
+  const shiftHours = viewMyTz ? (myOffsetMin - targetOffsetMin) / 60 : 0
+  const tzDisplay = viewMyTz
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : (targetTz ? tzLabel(targetTz) : "Server")
+
   return (
     <div className="space-y-6">
       {heatmapData.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-sm">Weekly Activity Pattern</CardTitle></CardHeader>
-          <CardContent><Heatmap data={heatmapData} /></CardContent>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Weekly Activity Pattern</CardTitle>
+              {targetTz && (
+                <button
+                  onClick={() => setViewMyTz(v => !v)}
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors ${
+                    viewMyTz
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  }`}
+                  title={viewMyTz ? "Showing in your timezone" : "Showing in target's timezone"}
+                >
+                  <Globe className="h-3 w-3" />
+                  {tzDisplay}
+                </button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent><Heatmap data={heatmapData} hourShift={shiftHours} /></CardContent>
         </Card>
       )}
       {data.summary?.length > 0 && (

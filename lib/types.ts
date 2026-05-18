@@ -33,6 +33,7 @@ export interface Target {
   notes: string | null
   priority: number
   active: number
+  timezone: string | null
 }
 
 export interface SentinelEvent {

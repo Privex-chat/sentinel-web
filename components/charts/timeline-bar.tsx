@@ -2,7 +2,7 @@
 "use client"
 
 import { useState } from "react"
-import { formatTime } from "@/lib/utils"
+import { formatTimeInTz } from "@/lib/utils"
 
 interface Session {
   type: string
@@ -17,9 +17,10 @@ interface TimelineBarProps {
   dayStart: number
   dayEnd: number
   height?: number
+  tz?: string | null
 }
 
-export function TimelineBar({ sessions, dayStart, dayEnd, height = 26 }: TimelineBarProps) {
+export function TimelineBar({ sessions, dayStart, dayEnd, height = 26, tz }: TimelineBarProps) {
   const [tooltip, setTooltip] = useState<{ session: Session; x: number; y: number } | null>(null)
   const totalMs = dayEnd - dayStart
   if (totalMs <= 0) return null
@@ -109,7 +110,7 @@ export function TimelineBar({ sessions, dayStart, dayEnd, height = 26 }: Timelin
                   <span style={{ color: tooltip.session.color }}>●</span>{" "}
                   {tooltip.session.label}
                   <span className="ml-2 text-muted-foreground">
-                    {formatTime(tooltip.session.start)} – {formatTime(tooltip.session.end)}
+                    {formatTimeInTz(tooltip.session.start, tz)} – {formatTimeInTz(tooltip.session.end, tz)}
                   </span>
                 </div>
               )}

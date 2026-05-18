@@ -9,13 +9,15 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { useApi, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatDateTime } from "@/lib/utils"
+import { formatDateTimeInTz } from "@/lib/utils"
 import { FileText, RefreshCw, Calendar } from "lucide-react"
 import type { DailyBrief } from "@/lib/types"
 
 export default function BriefsPage() {
   const userId = useTargetUserId()
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const tz = target?.timezone ?? null
   const [generating, setGenerating] = useState(false)
   const [dateInput, setDateInput] = useState("")
   const [selectedBrief, setSelectedBrief] = useState<DailyBrief | null>(null)
@@ -91,7 +93,7 @@ export default function BriefsPage() {
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Generated {formatDateTime(selectedBrief.generated_at)}
+              Generated {formatDateTimeInTz(selectedBrief.generated_at, tz)}
             </p>
           </CardHeader>
           <CardContent>
@@ -111,6 +113,7 @@ export default function BriefsPage() {
             onClick={() => setSelectedBrief(selectedBrief?.id === brief.id ? null : brief)}
             onRegenerate={() => handleGenerate(brief.date)}
             generating={generating}
+            tz={tz}
           />
         ))}
       </div>
@@ -172,12 +175,14 @@ function BriefCard({
   onClick,
   onRegenerate,
   generating,
+  tz,
 }: {
   brief: DailyBrief
   isSelected: boolean
   onClick: () => void
   onRegenerate: () => void
   generating: boolean
+  tz: string | null
 }) {
   const preview = brief.brief_text.slice(0, 160).replace(/\n/g, " ")
 
@@ -197,7 +202,7 @@ function BriefCard({
               {preview}{brief.brief_text.length > 160 ? "…" : ""}
             </p>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Generated {formatDateTime(brief.generated_at)}
+              Generated {formatDateTimeInTz(brief.generated_at, tz)}
             </p>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { useApi, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatRelative } from "@/lib/utils"
+import { formatRelative, formatTimeInTz } from "@/lib/utils"
 import { EVENT_COLORS, EVENT_LABELS } from "@/lib/types"
 import {
   Activity, Gamepad2, Music, Mic, AlertTriangle,
@@ -134,7 +134,7 @@ export default function TargetOverviewPage() {
                 <StatCard value={todaySummary.edit_count}          label="Edited"    color="var(--color-chart-3)"      icon={Edit}         />
                 <StatCard
                   value={todaySummary.first_seen
-                    ? new Date(todaySummary.first_seen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    ? formatTimeInTz(todaySummary.first_seen, target?.timezone)
                     : "—"}
                   label="First Seen" color="var(--color-muted-foreground)" icon={Clock}
                 />

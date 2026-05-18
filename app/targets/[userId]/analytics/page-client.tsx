@@ -14,7 +14,7 @@ import { Heatmap } from "@/components/charts/heatmap"
 import { useApi, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatMs, getAvatarUrl, userIdToHue } from "@/lib/utils"
+import { formatMs, formatDateInTz, getAvatarUrl, userIdToHue } from "@/lib/utils"
 import { STATUS_COLORS } from "@/lib/types"
 import type { SocialConnection, ProfileSnapshot } from "@/lib/types"
 import {
@@ -1166,7 +1166,8 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
 // ── SocialTab ─────────────────────────────────────────────────────────────────
 
 function SocialTab({ userId }: { userId: string }) {
-  const { settings, cacheVersion, targetStatuses } = useSentinel()
+  const { settings, cacheVersion, targetStatuses, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
   const [analyzing, setAnalyzing]   = useState(false)
   const [viewMode, setViewMode]     = useState<"graph" | "list">("graph")
 
@@ -1417,7 +1418,7 @@ function SocialTab({ userId }: { userId: string }) {
                     </span>
                   </div>
                   <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                    {new Date(ch.recorded_at).toLocaleDateString()}
+                    {formatDateInTz(ch.recorded_at, target?.timezone)}
                   </span>
                 </div>
               )
@@ -1524,7 +1525,8 @@ function CategoriesTab({ userId }: { userId: string }) {
 // ── Baselines ─────────────────────────────────────────────────────────────────
 
 function BaselinesTab({ userId }: { userId: string }) {
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
   const [recomputing, setRecomputing] = useState(false)
 
   const { data, loading, error, refetch } = useApi(
@@ -1582,7 +1584,7 @@ function BaselinesTab({ userId }: { userId: string }) {
               <div className="min-w-0">
                 <p className="text-sm font-medium capitalize">{b.metric_name.replace(/_/g, " ")}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  Computed {new Date(b.computed_at).toLocaleDateString()}
+                  Computed {formatDateInTz(b.computed_at, target?.timezone)}
                 </p>
               </div>
               <div className="text-right ml-4 flex-shrink-0">

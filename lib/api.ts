@@ -180,7 +180,7 @@ export const api = {
     request<{ success: boolean }>(`/api/targets/${userId}`, { method: "DELETE" }),
   updateTarget: (
     userId: string,
-    data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean }
+    data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean; timezone?: string | null }
   ) =>
     request<Target>(`/api/targets/${userId}`, {
       method: "PATCH",

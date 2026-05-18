@@ -9,6 +9,8 @@ interface HeatmapProps {
   colLabels?: string[]
   color?: string
   maxOverride?: number
+  /** Shift to apply to hour labels (viewer offset - target offset, in hours). 0 = no shift. */
+  hourShift?: number
 }
 
 const DEFAULT_ROWS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -20,12 +22,28 @@ export function Heatmap({
   colLabels,
   color = "var(--color-chart-1)",
   maxOverride,
+  hourShift = 0,
 }: HeatmapProps) {
   const [tooltip, setTooltip] = useState<{ row: number; col: number } | null>(null)
 
-  const max  = maxOverride ?? Math.max(...data.flat(), 1)
+  const shift = Math.round(hourShift)
+  const shiftedData = shift === 0
+    ? data
+    : data.map(row => {
+        const result = new Array(row.length)
+        for (let i = 0; i < row.length; i++) {
+          const srcIdx = ((i - shift) % row.length + row.length) % row.length
+          result[i] = row[srcIdx]
+        }
+        return result
+      })
+  const shiftedCols = shift === 0
+    ? (colLabels ?? DEFAULT_COLS)
+    : Array.from({ length: 24 }, (_, i) => `${((i + shift) % 24 + 24) % 24}`)
+
+  const max  = maxOverride ?? Math.max(...shiftedData.flat(), 1)
   const rows = rowLabels ?? DEFAULT_ROWS
-  const cols = colLabels ?? DEFAULT_COLS
+  const cols = shiftedCols
 
   return (
     <div className="overflow-x-auto">
@@ -48,7 +66,7 @@ export function Heatmap({
         ))}
 
         {/* Data rows — Fragment with key fixes the missing-key warning */}
-        {data.map((row, rowIdx) => (
+        {shiftedData.map((row, rowIdx) => (
           <Fragment key={rowIdx}>
             <div className="flex items-center justify-end pr-2 text-[10px] text-muted-foreground leading-none">
               {rows[rowIdx]}

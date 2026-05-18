@@ -11,13 +11,16 @@ import { DiscordId } from "@/components/ui/discord-id"
 import { useApi, useDebounce, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatDateTime } from "@/lib/utils"
+import { formatDateTimeInTz } from "@/lib/utils"
 import { MessageSquare, Search, Trash2, Edit, Ghost, Tag } from "lucide-react"
 
 const MESSAGE_CATEGORIES = ["gaming", "music", "emotional", "humor", "planning", "question", "general"] as const
 
 export default function MessagesPage() {
   const userId = useTargetUserId()
+  const { targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const tz = target?.timezone ?? null
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("")
 
@@ -55,16 +58,16 @@ export default function MessagesPage() {
             </select>
           </div>
         </div>
-        <AllMessages userId={userId} search={search} category={category} />
+        <AllMessages userId={userId} search={search} category={category} tz={tz} />
       </TabsContent>
-      <TabsContent value="deleted"><DeletedMessages userId={userId} /></TabsContent>
-      <TabsContent value="edited"><EditedMessages userId={userId} /></TabsContent>
+      <TabsContent value="deleted"><DeletedMessages userId={userId} tz={tz} /></TabsContent>
+      <TabsContent value="edited"><EditedMessages userId={userId} tz={tz} /></TabsContent>
       <TabsContent value="ghosts"><GhostTyping userId={userId} /></TabsContent>
     </Tabs>
   )
 }
 
-function AllMessages({ userId, search, category }: { userId: string; search: string; category: string }) {
+function AllMessages({ userId, search, category, tz }: { userId: string; search: string; category: string; tz: string | null }) {
   const { settings } = useSentinel()
   const debouncedSearch = useDebounce(search, 300)
 
@@ -86,14 +89,14 @@ function AllMessages({ userId, search, category }: { userId: string; search: str
     <Card>
       <CardContent className="p-0 divide-y max-h-[600px] overflow-y-auto">
         {data.map((msg) => (
-          <MessageItem key={msg.message_id} msg={msg} />
+          <MessageItem key={msg.message_id} msg={msg} tz={tz} />
         ))}
       </CardContent>
     </Card>
   )
 }
 
-function DeletedMessages({ userId }: { userId: string }) {
+function DeletedMessages({ userId, tz }: { userId: string; tz: string | null }) {
   const { settings } = useSentinel()
   const { data, loading, error } = useApi(
     () => api.getDeletedMessages(userId),
@@ -109,14 +112,14 @@ function DeletedMessages({ userId }: { userId: string }) {
     <Card>
       <CardContent className="p-0 divide-y max-h-[600px] overflow-y-auto">
         {data.map((msg) => (
-          <MessageItem key={msg.message_id} msg={msg} deleted />
+          <MessageItem key={msg.message_id} msg={msg} deleted tz={tz} />
         ))}
       </CardContent>
     </Card>
   )
 }
 
-function EditedMessages({ userId }: { userId: string }) {
+function EditedMessages({ userId, tz }: { userId: string; tz: string | null }) {
   const { settings } = useSentinel()
   const { data, loading, error } = useApi(
     () => api.getEditedMessages(userId),
@@ -132,7 +135,7 @@ function EditedMessages({ userId }: { userId: string }) {
     <Card>
       <CardContent className="p-0 divide-y max-h-[600px] overflow-y-auto">
         {data.map((msg) => (
-          <MessageItem key={msg.message_id} msg={msg} showEditHistory />
+          <MessageItem key={msg.message_id} msg={msg} showEditHistory tz={tz} />
         ))}
       </CardContent>
     </Card>
@@ -196,9 +199,10 @@ interface MessageItemProps {
   }
   deleted?: boolean
   showEditHistory?: boolean
+  tz?: string | null
 }
 
-function MessageItem({ msg, deleted, showEditHistory }: MessageItemProps) {
+function MessageItem({ msg, deleted, showEditHistory, tz }: MessageItemProps) {
   const content = msg.content || "[No content]"
   const ts = msg.created_at || msg.deleted_at || msg.edited_at
 
@@ -249,11 +253,11 @@ function MessageItem({ msg, deleted, showEditHistory }: MessageItemProps) {
           {msg.attachment_count > 0 && <span>{msg.attachment_count} attachments</span>}
           {msg.word_count > 0 && <span>{msg.word_count} words</span>}
           {msg.is_reply > 0 && <span>reply</span>}
-          {deleted && msg.deleted_at && <span>Deleted {formatDateTime(msg.deleted_at)}</span>}
+          {deleted && msg.deleted_at && <span>Deleted {formatDateTimeInTz(msg.deleted_at, tz)}</span>}
         </div>
       </div>
       <span className="text-[10px] text-muted-foreground flex-shrink-0">
-        {formatDateTime(ts || 0)}
+        {formatDateTimeInTz(ts || 0, tz)}
       </span>
     </div>
   )

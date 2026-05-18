@@ -13,12 +13,14 @@ import { useApi, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
 import { ALERT_TYPES } from "@/lib/types"
-import { formatDateTime } from "@/lib/utils"
+import { formatDateTimeInTz } from "@/lib/utils"
 import { Bell, Plus, Trash2, Check, Volume2, VolumeX } from "lucide-react"
 
 export default function TargetAlertsPage() {
   const userId = useTargetUserId()
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const tz = target?.timezone ?? null
   const [newType, setNewType] = useState<string>("COMES_ONLINE")
   const [digestMode, setDigestMode] = useState(false)
   const [fatigueThreshold, setFatigueThreshold] = useState(20)
@@ -173,7 +175,7 @@ export default function TargetAlertsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{alert.message}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {formatDateTime(alert.timestamp)}
+                      {formatDateTimeInTz(alert.timestamp, tz)}
                     </p>
                   </div>
                   {!alert.acknowledged && (

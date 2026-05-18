@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { useApi, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatDateTime } from "@/lib/utils"
+import { formatDateTimeInTz } from "@/lib/utils"
 import { Download, Play, RotateCcw, CheckCircle, XCircle, Clock, AlertTriangle, RefreshCw, PlusCircle } from "lucide-react"
 import type { BackfillChannelRow } from "@/lib/types"
 
@@ -26,7 +26,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 
 export default function BackfillPage() {
   const userId = useTargetUserId()
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const tz = target?.timezone ?? null
   const [starting, setStarting] = useState(false)
   const [customMode, setCustomMode] = useState<"new_channels" | "full_reset" | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -180,7 +182,7 @@ export default function BackfillPage() {
         <Card className="overflow-hidden">
           <div className="divide-y max-h-[520px] overflow-y-auto">
             {filteredChannels.map((ch) => (
-              <ChannelRow key={ch.id} channel={ch} />
+              <ChannelRow key={ch.id} channel={ch} tz={tz} />
             ))}
           </div>
         </Card>
@@ -189,7 +191,7 @@ export default function BackfillPage() {
   )
 }
 
-function ChannelRow({ channel }: { channel: BackfillChannelRow }) {
+function ChannelRow({ channel, tz }: { channel: BackfillChannelRow; tz: string | null }) {
   const cfg = STATUS_CONFIG[channel.status] || STATUS_CONFIG.pending
   const Icon = cfg.icon
 
@@ -216,7 +218,7 @@ function ChannelRow({ channel }: { channel: BackfillChannelRow }) {
           <p className="mt-0.5 text-[10px] text-destructive truncate">{channel.error}</p>
         )}
         {channel.completed_at && (
-          <p className="text-[10px] text-muted-foreground">{formatDateTime(channel.completed_at)}</p>
+          <p className="text-[10px] text-muted-foreground">{formatDateTimeInTz(channel.completed_at, tz)}</p>
         )}
       </div>
       <span className="font-mono text-[10px] text-muted-foreground flex-shrink-0 hidden sm:block truncate max-w-[120px]">

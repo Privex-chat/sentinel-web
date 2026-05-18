@@ -11,13 +11,15 @@ import { TimelineBar } from "@/components/charts/timeline-bar"
 import { useApi, useDebounce, useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
 import { useSentinel } from "@/lib/context"
-import { formatTime, formatDate } from "@/lib/utils"
+import { formatTimeInTz, formatDateInTz } from "@/lib/utils"
 import { EVENT_COLORS, EVENT_LABELS, STATUS_COLORS } from "@/lib/types"
 import { Clock, Filter, ChevronLeft, ChevronRight, ExternalLink, Search, Calendar, X } from "lucide-react"
 
 export default function TimelinePage() {
   const userId  = useTargetUserId()
-  const { settings } = useSentinel()
+  const { settings, targets } = useSentinel()
+  const target = targets.find(t => t.user_id === userId)
+  const tz = target?.timezone ?? null
 
   // List mode state
   const [offset, setOffset]           = useState(0)
@@ -197,7 +199,7 @@ export default function TimelinePage() {
           </CardHeader>
           <CardContent className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
             <div style={{ minWidth: 480 }}>
-              <TimelineBar sessions={ganttSessions} dayStart={ganttStart} dayEnd={ganttEnd} />
+              <TimelineBar sessions={ganttSessions} dayStart={ganttStart} dayEnd={ganttEnd} tz={tz} />
             </div>
           </CardContent>
         </Card>
@@ -330,8 +332,8 @@ export default function TimelinePage() {
                           </a>
                         )}
                         <div className="text-right">
-                          <p className="text-xs text-muted-foreground">{formatTime(event.timestamp)}</p>
-                          <p className="text-[10px] text-muted-foreground/60">{formatDate(event.timestamp)}</p>
+                          <p className="text-xs text-muted-foreground">{formatTimeInTz(event.timestamp, tz)}</p>
+                          <p className="text-[10px] text-muted-foreground/60">{formatDateInTz(event.timestamp, tz)}</p>
                         </div>
                       </div>
                     </div>

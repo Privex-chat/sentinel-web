@@ -27,7 +27,10 @@ import {
   FileText,
   Settings2,
   Download,
+  Globe,
 } from "lucide-react"
+import { TimezoneModal } from "@/components/dashboard/timezone-modal"
+import { tzLabel } from "@/lib/utils"
 
 const tabs = [
   { name: "Overview",  href: "",           icon: LayoutDashboard },
@@ -58,6 +61,7 @@ export default function TargetLayoutClient({ children }: { children: React.React
   const [labelValue,    setLabelValue]    = useState(target?.label || "")
   const [labelHovered,  setLabelHovered]  = useState(false)
   const [savingLabel,   setSavingLabel]   = useState(false)
+  const [tzModalOpen,   setTzModalOpen]   = useState(false)
   const labelInputRef = useRef<HTMLInputElement>(null)
 
   // Prevent React hydration mismatch: the static export was built with
@@ -112,6 +116,12 @@ export default function TargetLayoutClient({ children }: { children: React.React
   const handleLabelKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter")  { e.preventDefault(); handleLabelSave() }
     if (e.key === "Escape") { e.preventDefault(); handleLabelCancel() }
+  }
+
+  const handleTimezoneSave = async (tz: string | null) => {
+    await api.updateTarget(userId, { timezone: tz })
+    api.clearCacheForTarget(userId)
+    await refreshTargets()
   }
 
   const getCurrentTab = () => pathname.replace(basePath, "") || ""
@@ -223,6 +233,15 @@ export default function TargetLayoutClient({ children }: { children: React.React
               {target?.priority !== undefined && target.priority >= 2 && (
                 <Badge variant="destructive">Critical</Badge>
               )}
+
+              <button
+                onClick={() => setTzModalOpen(true)}
+                className="flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground hover:bg-primary/5"
+                title={target?.timezone ? `Timezone: ${target.timezone}` : "Set timezone"}
+              >
+                <Globe className="h-3 w-3" />
+                {target?.timezone ? tzLabel(target.timezone) : "TZ"}
+              </button>
             </div>
 
             {/* Status row */}
@@ -272,6 +291,13 @@ export default function TargetLayoutClient({ children }: { children: React.React
 
       {/* Page content */}
       <div className="p-3 md:p-6">{children}</div>
+
+      <TimezoneModal
+        open={tzModalOpen}
+        onClose={() => setTzModalOpen(false)}
+        currentTimezone={target?.timezone ?? null}
+        onSave={handleTimezoneSave}
+      />
     </AppShell>
   )
 }
