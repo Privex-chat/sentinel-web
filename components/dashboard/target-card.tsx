@@ -75,6 +75,7 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
       const trimmed = labelValue.trim()
       // Send null explicitly so an empty string clears the label in the DB
       await api.updateTarget(target.user_id, { label: trimmed || null })
+      api.clearCacheForTarget(target.user_id)
       await refreshTargets()
     } catch (err) {
       console.error("Failed to update label:", err)
@@ -109,6 +110,7 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
     try {
       const tz = timezoneValue.trim() || "UTC"
       await api.updateTarget(target.user_id, { timezone: tz })
+      api.clearCacheForTarget(target.user_id)
       await refreshTargets()
       setEditingTimezone(false)
     } catch (err) {

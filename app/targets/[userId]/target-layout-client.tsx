@@ -110,6 +110,7 @@ export default function TargetLayoutClient({ children }: { children: React.React
       const trimmed = labelValue.trim()
       // Send null explicitly so an empty string clears the label in the DB
       await api.updateTarget(userId, { label: trimmed || null })
+      api.clearCacheForTarget(userId)
       await refreshTargets()
     } catch (e) {
       console.error("Failed to update label:", e)
@@ -131,6 +132,7 @@ export default function TargetLayoutClient({ children }: { children: React.React
     try {
       const tz = timezoneValue.trim() || "UTC"
       await api.updateTarget(userId, { timezone: tz })
+      api.clearCacheForTarget(userId)
       await refreshTargets()
       setEditingTimezone(false)
     } catch (e) {
