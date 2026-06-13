@@ -99,8 +99,11 @@ interface RichDetail {
 function extractRichDetail(event: SSEEvent, d: Record<string, unknown>): RichDetail {
   switch (event.event_type) {
 
-    case "PRESENCE_UPDATE":
-    case "INITIAL_PRESENCE": {
+    // INITIAL_PRESENCE / INITIAL_ACTIVITY never arrive via SSE (backend
+    // skips them in presence.ts:initPresence and activity.ts:initActivities),
+    // so those case labels are intentionally absent here. The timeline view
+    // renders historical INITIAL_* rows through a separate code path.
+    case "PRESENCE_UPDATE": {
       const oldS = d.oldStatus as string | undefined
       const newS = d.newStatus as string | undefined
       const platform = d.platform as string | undefined
@@ -117,8 +120,7 @@ function extractRichDetail(event: SSEEvent, d: Record<string, unknown>): RichDet
       }
     }
 
-    case "ACTIVITY_START":
-    case "INITIAL_ACTIVITY": {
+    case "ACTIVITY_START": {
       const name = d.name as string | undefined
       const details = d.details as string | undefined
       const state = d.state as string | undefined

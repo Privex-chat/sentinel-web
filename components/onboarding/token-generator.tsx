@@ -1,7 +1,7 @@
 /* components/onboarding/token-generator.tsx */
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { RefreshCw, Copy, Check, ShieldCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -30,10 +30,16 @@ export function TokenGenerator({ value, onChange, length = 32 }: TokenGeneratorP
     onChange(generate(length, true))
   }, [length, onChange])
 
-  // Auto-generate on first render if empty
-  useState(() => {
+  // Auto-generate on first mount when no token is provided. Previously this
+  // abused `useState(() => { ... })` for the side effect — works in practice
+  // but trips lint rules and breaks under React 19 Strict Mode's render
+  // double-invocation semantics. `useEffect` with an empty dep list is the
+  // correct mount-once side effect.
+  useEffect(() => {
     if (!value) onChange(generate(length, true))
-  })
+    // Intentionally empty deps: this is a one-shot bootstrap on first mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const copy = () => {
     if (!value) return

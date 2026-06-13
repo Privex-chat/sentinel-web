@@ -1,5 +1,11 @@
 /* public/sw.js */
-const CACHE_NAME = "sentinel-v1";
+//
+// Bump CACHE_NAME on every release that ships new HTML / JS / CSS. The
+// "activate" handler below deletes every cache whose name doesn't match the
+// current one, so increasing the suffix is the only way to evict users from
+// stale precaches. The previous "sentinel-v1" version stuck around for
+// months because nobody touched this file — keep an eye on it.
+const CACHE_NAME = "sentinel-v2";
 
 const PRECACHE_URLS = [
   "/",

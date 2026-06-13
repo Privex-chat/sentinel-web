@@ -137,6 +137,10 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
   // ── Keep API config in sync ─────────────────────────────────────────────────
   useEffect(() => {
     setApiConfig(settings.sentinelUrl, settings.sentinelToken)
+    // Pointing at a different selfbot or rotating the token can land us with a
+    // request-cache full of stale-auth entries that would be served under the
+    // new context. Wipe the URL-keyed cache so the next read goes to the wire.
+    api.clearCache()
   }, [settings.sentinelUrl, settings.sentinelToken])
 
   const updateSettings = useCallback((newSettings: Partial<Settings>) => {
@@ -279,17 +283,31 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
     const { baseUrl, token } = getApiConfig()
     if (!baseUrl || !token) return
 
-    const url = `${baseUrl}/api/events/stream`
+    const baseUrlStream = `${baseUrl}/api/events/stream`
     let abortController: AbortController | null = null
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
     let reconnectDelay = 1_000
     const MAX_RECONNECT_DELAY = 30_000
     let stopped = false
+    // Track the highest SSE `id:` we've seen so reconnects can pass
+    // `?since=<id>` and replay any events missed during the disconnect.
+    // The backend keeps a 500-event ring buffer (see selfbot
+    // events.ts:eventBuffer). Survives the connect callback closure.
+    let lastSeenEventId = 0
 
     const connect = async () => {
       if (stopped) return
       try {
         abortController = new AbortController()
+
+        // Build the reconnect URL with ?since= when we have a watermark, so
+        // the server replays anything that landed in the buffer since the
+        // last frame we processed. First connection has lastSeenEventId=0
+        // and just gets the live tail.
+        const url =
+          lastSeenEventId > 0
+            ? `${baseUrlStream}?since=${lastSeenEventId}`
+            : baseUrlStream
 
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
@@ -306,6 +324,13 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
         const reader  = response.body.getReader()
         const decoder = new TextDecoder()
         let buffer    = ""
+        // SSE frames are separated by a blank line; we accumulate `id:` and
+        // `data:` lines per frame and dispatch on the terminator. The
+        // previous implementation flushed every individual `data:` line
+        // immediately, which is fine for our payload shape (one data line
+        // per event) but means we have to track `id:` separately within the
+        // same frame.
+        let pendingId: number | null = null
 
         while (true) {
           const { done, value } = await reader.read()
@@ -316,10 +341,34 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
           buffer = lines.pop() || ""
 
           for (const line of lines) {
+            if (line === "") {
+              // Frame terminator — commit pendingId. (data already
+              // dispatched below when its line was seen.)
+              if (pendingId !== null) {
+                lastSeenEventId = pendingId
+                pendingId = null
+              }
+              continue
+            }
+            if (line.startsWith("id: ")) {
+              const parsed = parseInt(line.slice(4), 10)
+              if (Number.isFinite(parsed)) pendingId = parsed
+              continue
+            }
+            if (line.startsWith(":")) continue   // keepalive comment
             if (!line.startsWith("data: ")) continue
             try {
               const raw = JSON.parse(line.slice(6))
-              if (raw?.type === "connected") continue
+              if (raw?.type === "connected") {
+                // Initial frame from the server carries the current
+                // high-water id so we have a watermark even before the
+                // first real event lands.
+                const initial = typeof raw.lastEventId === "number" ? raw.lastEventId : null
+                if (initial !== null && initial > lastSeenEventId) {
+                  lastSeenEventId = initial
+                }
+                continue
+              }
 
               const data = raw as SSEEvent
 
@@ -327,10 +376,12 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
                 const isDuplicate = prev.some((e) => {
                   if (e.event_type !== data.event_type || e.target_id !== data.target_id) return false
                
-                  // For presence/status events: same newStatus within 60 s = duplicate
+                  // For presence/status events: same newStatus within 60 s = duplicate.
+                  // INITIAL_PRESENCE is intentionally excluded — the backend
+                  // never pushes it over SSE (presence.ts:initPresence), it
+                  // only stores it in the events table for the timeline view.
                   if (
                     data.event_type === "PRESENCE_UPDATE" ||
-                    data.event_type === "INITIAL_PRESENCE" ||
                     data.event_type === "PLATFORM_SWITCH"
                   ) {
                     const eD = (typeof e.data === "string" ? JSON.parse(e.data) : e.data ?? {}) as Record<string, unknown>

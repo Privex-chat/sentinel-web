@@ -1,8 +1,8 @@
 /* components/onboarding/env-builder.tsx */
 "use client"
 
-import { useState } from "react"
-import { Copy, Check, Eye, EyeOff } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Copy, Check, Eye, EyeOff, RefreshCw } from "lucide-react"
 
 type DeployMethod = "local" | "vps" | "railway"
 
@@ -12,9 +12,36 @@ interface EnvBuilderProps {
   discordToken: string
 }
 
+// 32 random bytes, base64-encoded — matches selfbot src/utils/crypto.ts.
+// Generated once per wizard session so the same key shows up in the on-screen
+// fields and the copy-to-clipboard .env block. Uses crypto.getRandomValues so
+// the key is created locally and never sent over the network.
+function generateDataKey(): string {
+  const buf = new Uint8Array(32)
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(buf)
+  } else {
+    // Vanishingly unlikely (we're a browser-only "use client" component) but
+    // keep a deterministic placeholder rather than throwing.
+    return "REPLACE_WITH_BASE64_32_BYTES"
+  }
+  let s = ""
+  for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i])
+  return btoa(s)
+}
+
 export function EnvBuilder({ method, apiToken, discordToken }: EnvBuilderProps) {
   const [copied, setCopied] = useState(false)
   const [showSecrets, setShowSecrets] = useState(false)
+  const [dataKey, setDataKey] = useState("")
+
+  // Generate the data key on mount. Stable across re-renders unless the user
+  // explicitly clicks Regenerate. Stored in component state only — not sent
+  // anywhere, not persisted across reloads (user must paste the displayed
+  // value into their secret store).
+  useEffect(() => {
+    setDataKey(generateDataKey())
+  }, [])
 
   const mask = (val: string, placeholder: string) => {
     if (!val) return placeholder
@@ -23,6 +50,14 @@ export function EnvBuilder({ method, apiToken, discordToken }: EnvBuilderProps) 
   }
 
   const raw = (val: string, placeholder: string) => val || placeholder
+
+  // SENTINEL_DATA_KEY is recommended for any deployment that writes sensitive
+  // values to runtime_config (Discord token, AI key, webhook URLs, Supabase
+  // service key). For local mode it's optional but cheap insurance.
+  const dataKeyLine = useMemo(
+    () => `SENTINEL_DATA_KEY=${dataKey || "REPLACE_WITH_GENERATED_KEY"}`,
+    [dataKey]
+  )
 
   const localEnv = `DISCORD_TOKEN=${raw(discordToken, "YOUR_DISCORD_TOKEN_HERE")}
 API_PORT=48923
@@ -33,7 +68,8 @@ PROFILE_POLL_INTERVAL_MS=300000
 STATUS_POLL_INTERVAL_MS=120000
 DAILY_SUMMARY_INTERVAL_MS=3600000
 RANDOM_JITTER=true
-DB_MODE=local`
+DB_MODE=local
+${dataKeyLine}`
 
   const vpsEnv = `DISCORD_TOKEN=${raw(discordToken, "YOUR_DISCORD_TOKEN_HERE")}
 API_PORT=48923
@@ -44,7 +80,8 @@ PROFILE_POLL_INTERVAL_MS=300000
 STATUS_POLL_INTERVAL_MS=120000
 DAILY_SUMMARY_INTERVAL_MS=3600000
 RANDOM_JITTER=true
-DB_MODE=local`
+DB_MODE=local
+${dataKeyLine}`
 
   const railwayEnv = `DISCORD_TOKEN=${raw(discordToken, "YOUR_DISCORD_TOKEN_HERE")}
 API_PORT=48923
@@ -58,14 +95,18 @@ RANDOM_JITTER=true
 DB_MODE=cloud
 SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 SUPABASE_SERVICE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
-SUPABASE_SYNC_INTERVAL_MS=30000`
+SUPABASE_SYNC_INTERVAL_MS=30000
+${dataKeyLine}`
 
   const envContent = method === "local" ? localEnv : method === "vps" ? vpsEnv : railwayEnv
 
-  // Display version (masked)
+  // Display version (masked). The data key is masked the same way as the
+  // Discord / API tokens — even on screen the operator only sees a preview
+  // until they explicitly toggle "Reveal secrets".
   const displayContent = envContent
     .replace(raw(discordToken, ""), discordToken ? mask(discordToken, "") : "YOUR_DISCORD_TOKEN_HERE")
     .replace(raw(apiToken, ""), apiToken ? mask(apiToken, "") : "YOUR_GENERATED_TOKEN_HERE")
+    .replace(dataKey, dataKey ? mask(dataKey, "") : "REPLACE_WITH_GENERATED_KEY")
 
   const copy = () => {
     navigator.clipboard.writeText(envContent).then(() => {
@@ -102,6 +143,15 @@ SUPABASE_SYNC_INTERVAL_MS=30000`
     { key: "DB_PATH", value: method === "railway" ? "/data/sentinel.db" : "./data/sentinel.db", desc: "Where the local SQLite file is stored" },
     { key: "API_PORT", value: "48923", desc: "The port the API listens on" },
     { key: "RANDOM_JITTER", value: "true", desc: "Adds random timing variation to polling — helps avoid detection" },
+    {
+      key: "SENTINEL_DATA_KEY",
+      value: dataKey ? mask(dataKey, "—") : "Generating…",
+      desc:
+        method === "railway"
+          ? "AES-256-GCM key for encrypting sensitive runtime_config values (Discord token, AI key, Supabase service key, webhook URLs) before they hit Supabase. Strongly recommended for cloud mode — without it secrets land plaintext in two stores."
+          : "AES-256-GCM key for encrypting sensitive runtime_config values at rest. Optional for local mode; recommended if you back up the SQLite file.",
+      secret: true,
+    },
   ]
 
   return (
@@ -110,13 +160,23 @@ SUPABASE_SYNC_INTERVAL_MS=30000`
       <div className="rounded-xl border border-border bg-secondary/20 overflow-hidden">
         <div className="border-b border-border px-4 py-3 flex items-center justify-between">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Environment Variables</h4>
-          <button
-            onClick={() => setShowSecrets((v) => !v)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showSecrets ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            {showSecrets ? "Hide secrets" : "Reveal secrets"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setDataKey(generateDataKey())}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title="Regenerate SENTINEL_DATA_KEY"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Regen key
+            </button>
+            <button
+              onClick={() => setShowSecrets((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showSecrets ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {showSecrets ? "Hide secrets" : "Reveal secrets"}
+            </button>
+          </div>
         </div>
         <div className="divide-y divide-border">
           {fields.map((f) => (

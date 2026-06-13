@@ -55,7 +55,6 @@ const jsonLd = {
     "Message history including deleted and edited messages",
     "Voice call analytics",
     "Gaming and Spotify activity tracking",
-    "Stalking",
   ],
 }
 
@@ -136,18 +135,18 @@ export const metadata: Metadata = {
 
   // ── Keywords ──────────────────────────────────────────────────────────────────
   // These are a minor signal at best — focus stays on title/description quality.
+  // Aggressive "stalkware" / "how to stalk" terms have been removed:
+  //  - they attract abuse-prevention flags from search and ad networks,
+  //  - they don't materially change ranking for an obscure self-hosted tool,
+  //  - they pose a positioning problem (Vercel / Cloudflare / Discord look at
+  //    indexed metadata when triaging takedown reports).
+  // The remaining set describes the actual capabilities.
   keywords: [
     "Discord intelligence",
     "Discord tracker",
     "Discord analytics",
     "Discord monitoring",
     "selfbot dashboard",
-    "stalker",
-    "stalking tool",
-    "how to stalk someone on Discord",
-    "stalkware",
-    "Discord stalker",
-    "Stalking on Discord",
     "Discord presence tracker",
     "AI Discord analysis",
     "Discord activity monitor",

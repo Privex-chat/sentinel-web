@@ -23,74 +23,35 @@ cd sentinel-web
 pnpm install
 ```
 
-### 3. Configure Environment
-
-Create a `.env.local` file in the project root:
-
-```env
-# Sentinel API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Optional: API authentication key
-NEXT_PUBLIC_API_KEY=your-api-key-here
-```
-
-### 4. Start Development Server
+### 3. Start the Development Server
 
 ```bash
 pnpm dev
 ```
 
-The application will be available at `http://localhost:3000`.
+The application is available at `http://localhost:3000`.
+
+There is **no `.env.local` config needed** for the panel itself. The selfbot API URL and `API_AUTH_TOKEN` are entered in the in-browser **Settings** page on first launch and persisted to `localStorage`.
+
+> ⚠ The deprecated `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_API_KEY` documented in older versions of this file are not read by any current code. `NEXT_PUBLIC_*` env vars are inlined into the browser bundle at build time — placing a real API token there ships it to every visitor.
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | Yes | - | Base URL of the Sentinel Selfbot API |
-| `NEXT_PUBLIC_API_KEY` | No | - | API key for authenticated requests |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DESKTOP_BUILD` | Build-time only | Set to `true` by the Electron packaging script to produce a static export (`next.config.ts:isDesktop`). Do not set manually. |
+
+That's it. Everything else is runtime configuration that the user enters in the Settings page.
 
 ## Backend Requirements
 
-Ensure the Sentinel Selfbot backend is running and configured to accept connections from the web dashboard.
+The panel speaks to the [sentinel-selfbot](https://github.com/Privex-chat/sentinel-selfbot) HTTP API. Spin the selfbot up first — the panel's [`/setup`](http://localhost:3000/setup) wizard walks you through the three supported deployment paths (local, VPS, Railway).
 
-### Required Backend Endpoints
+The full API contract lives in [`lib/api.ts`](./lib/api.ts) — that is the source of truth for what endpoints the panel calls. The selfbot exposes all of them; you don't need to wire anything up manually.
 
-The web dashboard expects the following API endpoints to be available:
+### CORS
 
-```
-GET  /api/targets                    # List tracked targets
-GET  /api/targets/:userId            # Get target details
-POST /api/targets                    # Add new target
-DELETE /api/targets/:userId          # Remove target
-
-GET  /api/targets/:userId/events     # Target event history
-GET  /api/targets/:userId/timeline   # Presence timeline
-GET  /api/targets/:userId/messages   # Message logs
-GET  /api/targets/:userId/analytics  # Analytics data
-GET  /api/targets/:userId/insights   # Behavioral insights
-GET  /api/targets/:userId/profiles   # Profile history
-
-GET  /api/alerts                     # List alerts
-POST /api/alerts                     # Create alert
-PUT  /api/alerts/:id                 # Update alert
-DELETE /api/alerts/:id               # Delete alert
-
-GET  /api/events/stream              # SSE event stream
-GET  /api/health                     # Health check
-```
-
-### CORS Configuration
-
-Configure the backend to allow requests from the web dashboard origin:
-
-```javascript
-// Example Express.js CORS configuration
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://your-domain.com'],
-  credentials: true,
-}));
-```
+The selfbot ships with permissive CORS (`origin: true`, methods `GET/POST/PUT/PATCH/DELETE/OPTIONS`, no credentials). No backend config required to connect the panel — but if you put the API behind a reverse proxy, make sure it doesn't strip the `Authorization` header or buffer the `text/event-stream` response on `/api/events/stream` (set `X-Accel-Buffering: no` for nginx).
 
 ## Development
 
@@ -193,8 +154,10 @@ Build and run:
 
 ```bash
 docker build -t sentinel-web .
-docker run -p 3000:3000 -e NEXT_PUBLIC_API_URL=http://api:3001 sentinel-web
+docker run -p 3000:3000 sentinel-web
 ```
+
+The API URL is entered in the browser on first launch — there is nothing to pass via `-e`.
 
 ## Troubleshooting
 
@@ -203,19 +166,19 @@ docker run -p 3000:3000 -e NEXT_PUBLIC_API_URL=http://api:3001 sentinel-web
 **Problem**: Dashboard shows "Disconnected" or "Connection Failed"
 
 **Solutions**:
-1. Verify `NEXT_PUBLIC_API_URL` is correct
-2. Check if the backend is running
-3. Verify CORS is configured on the backend
-4. Check browser console for specific error messages
+1. Open Settings and confirm the API URL points at a running selfbot
+2. Confirm the API token matches the selfbot's `API_AUTH_TOKEN`
+3. If the selfbot is hosted, check the reverse proxy isn't blocking or stripping the `Authorization` header
+4. Check the browser console for the exact error
 
 ### SSE Not Working
 
 **Problem**: Live feed not updating in real-time
 
 **Solutions**:
-1. Ensure `/api/events/stream` endpoint returns proper SSE headers
-2. Check if firewalls/proxies are blocking long-lived connections
-3. Verify the backend is emitting events correctly
+1. Confirm `/api/events/stream` is reachable behind your reverse proxy with `X-Accel-Buffering: no`
+2. Check long-lived connections aren't being killed by an upstream timeout (Cloudflare default is 100 s, Vercel free is 10 s)
+3. The panel auto-reconnects with exponential backoff up to 30 s, and replays missed events via `?since=<lastEventId>` — verify the selfbot version is recent enough to honour the `since` query param (added in the same audit pass)
 
 ### Build Errors
 

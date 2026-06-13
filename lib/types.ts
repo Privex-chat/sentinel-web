@@ -32,7 +32,14 @@ export interface Target {
   label: string | null
   notes: string | null
   priority: number
-  active: number
+  /**
+   * 0 or 1. The selfbot stores this as a SQLite INTEGER (no boolean type)
+   * and serialises it as a number; the PATCH endpoint accepts `boolean` for
+   * convenience (see api.ts:updateTarget). Compare with `=== 1` rather than
+   * truthiness when reading — `0 && ...` short-circuits the right way but
+   * `!active` is clearer.
+   */
+  active: 0 | 1
 }
 
 export interface SentinelEvent {
