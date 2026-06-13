@@ -52,6 +52,7 @@ export function AddTargetForm({ onClose }: AddTargetFormProps) {
       // Empty timezone → let the selfbot apply its "UTC" default. The selfbot
       // validates non-empty values against ICU and returns 400 on bad zones,
       // which surfaces in the catch block below.
+      console.log('[AddTargetForm] submitting with timezone:', JSON.stringify(timezone), 'trimmed:', JSON.stringify(timezone.trim() || undefined))
       await addTarget(trimmedId, label.trim() || undefined, timezone.trim() || undefined)
       setUserId("")
       setLabel("")
