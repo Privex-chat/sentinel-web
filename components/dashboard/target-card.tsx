@@ -300,12 +300,12 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
       {/* Timezone row */}
       <div
         className="mt-2 flex items-center gap-1 min-h-[20px]"
-        onClick={(e) => e.preventDefault()}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
       >
         {editingTimezone ? (
           <div
             className="flex w-full flex-col gap-1"
-            onClick={(e) => e.preventDefault()}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
           >
             <div className="flex items-center gap-1">
               <Globe className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
@@ -315,10 +315,10 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
                 placeholder="Timezone…"
                 disabled={savingTimezone}
                 onKeyDown={handleTimezoneKeyDown}
-                inputClassName="h-6 px-1.5 py-0 text-[10px] rounded focus:ring-0 focus:border-primary border-primary"
+                compact
               />
               <button
-                onClick={handleTimezoneSave}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTimezoneSave() }}
                 disabled={savingTimezone}
                 className="rounded p-0.5 text-status-online hover:bg-secondary transition-colors disabled:opacity-50 flex-shrink-0"
                 title="Save timezone"

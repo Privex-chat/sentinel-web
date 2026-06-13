@@ -295,7 +295,7 @@ export default function TargetLayoutClient({ children }: { children: React.React
                       placeholder="Timezone…"
                       disabled={savingTimezone}
                       onKeyDown={handleTimezoneKeyDown}
-                      inputClassName="h-5 px-1.5 py-0 text-[10px] rounded focus:ring-0 focus:border-primary border-primary"
+                      compact
                     />
                     <button
                       onClick={handleTimezoneSave}
