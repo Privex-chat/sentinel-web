@@ -200,7 +200,7 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
   const updateTarget = useCallback(
     async (
       userId: string,
-      data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean }
+      data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean; timezone?: string }
     ) => {
       await api.updateTarget(userId, data)
       api.clearCacheForTarget(userId)

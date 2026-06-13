@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { useSentinel } from "@/lib/context"
 import { api } from "@/lib/api"
 import type { Target, TargetStatus } from "@/lib/types"
-import { X, Gamepad2, Music, Mic, Pencil, Check } from "lucide-react"
+import { X, Gamepad2, Music, Mic, Pencil, Check, Globe } from "lucide-react"
+import { TimezoneSelect } from "@/components/ui/timezone-select"
 
 interface TargetCardProps {
   target: Target
@@ -25,10 +26,14 @@ const STATUS_DOT: Record<string, string> = {
 }
 
 export function TargetCard({ target, status, onRemove }: TargetCardProps) {
-  const [hovered,       setHovered]       = useState(false)
-  const [editingLabel,  setEditingLabel]  = useState(false)
-  const [labelValue,    setLabelValue]    = useState(target.label || "")
-  const [savingLabel,   setSavingLabel]   = useState(false)
+  const [hovered,          setHovered]          = useState(false)
+  const [editingLabel,     setEditingLabel]     = useState(false)
+  const [labelValue,       setLabelValue]       = useState(target.label || "")
+  const [savingLabel,      setSavingLabel]      = useState(false)
+  const [editingTimezone,  setEditingTimezone]  = useState(false)
+  const [timezoneValue,    setTimezoneValue]    = useState(target.timezone || "UTC")
+  const [savingTimezone,   setSavingTimezone]   = useState(false)
+  const [tzError,          setTzError]          = useState<string | null>(null)
   const labelInputRef = useRef<HTMLInputElement>(null)
   const { refreshTargets } = useSentinel()
 
@@ -38,6 +43,12 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
       setLabelValue(target.label || "")
     }
   }, [target.label, editingLabel])
+
+  useEffect(() => {
+    if (!editingTimezone) {
+      setTimezoneValue(target.timezone || "UTC")
+    }
+  }, [target.timezone, editingTimezone])
 
   useEffect(() => {
     if (editingLabel) {
@@ -87,6 +98,42 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
     e.stopPropagation()
     setLabelValue(target.label || "")
     setEditingLabel(true)
+  }
+
+  const handleTimezoneSave = async (e?: React.MouseEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
+    if (savingTimezone) return
+    setTzError(null)
+    setSavingTimezone(true)
+    try {
+      const tz = timezoneValue.trim() || "UTC"
+      await api.updateTarget(target.user_id, { timezone: tz })
+      await refreshTargets()
+      setEditingTimezone(false)
+    } catch (err) {
+      setTzError(err instanceof Error ? err.message : "Failed to update timezone")
+    } finally {
+      setSavingTimezone(false)
+    }
+  }
+
+  const handleTimezoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter")  { e.preventDefault(); handleTimezoneSave() }
+    if (e.key === "Escape") {
+      e.preventDefault()
+      setTimezoneValue(target.timezone || "UTC")
+      setTzError(null)
+      setEditingTimezone(false)
+    }
+  }
+
+  const startEditingTimezone = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setTimezoneValue(target.timezone || "UTC")
+    setTzError(null)
+    setEditingTimezone(true)
   }
 
   return (
@@ -246,6 +293,69 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
               {voiceState.streaming && " · Streaming"}
               {voiceState.selfMute  && " · Muted"}
             </span>
+          </div>
+        )}
+      </div>
+
+      {/* Timezone row */}
+      <div
+        className="mt-2 flex items-center gap-1 min-h-[20px]"
+        onClick={(e) => e.preventDefault()}
+      >
+        {editingTimezone ? (
+          <div
+            className="flex w-full flex-col gap-1"
+            onClick={(e) => e.preventDefault()}
+          >
+            <div className="flex items-center gap-1">
+              <Globe className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+              <TimezoneSelect
+                value={timezoneValue}
+                onChange={setTimezoneValue}
+                placeholder="Timezone…"
+                disabled={savingTimezone}
+                onKeyDown={handleTimezoneKeyDown}
+                inputClassName="h-6 px-1.5 py-0 text-[10px] rounded focus:ring-0 focus:border-primary border-primary"
+              />
+              <button
+                onClick={handleTimezoneSave}
+                disabled={savingTimezone}
+                className="rounded p-0.5 text-status-online hover:bg-secondary transition-colors disabled:opacity-50 flex-shrink-0"
+                title="Save timezone"
+              >
+                <Check className="h-3 w-3" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setTimezoneValue(target.timezone || "UTC")
+                  setTzError(null)
+                  setEditingTimezone(false)
+                }}
+                className="rounded p-0.5 text-muted-foreground hover:bg-secondary transition-colors flex-shrink-0"
+                title="Cancel"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+            {tzError && (
+              <p className="text-[10px] text-destructive pl-4">{tzError}</p>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Globe className="h-3 w-3 flex-shrink-0" />
+            <span className="font-mono">{target.timezone || "UTC"}</span>
+            {hovered && (
+              <button
+                onClick={startEditingTimezone}
+                className="rounded p-0.5 hover:text-foreground hover:bg-secondary transition-colors"
+                title="Edit timezone"
+              >
+                <Pencil className="h-2.5 w-2.5" />
+              </button>
+            )}
           </div>
         )}
       </div>

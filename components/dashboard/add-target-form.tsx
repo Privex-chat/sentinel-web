@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useSentinel } from "@/lib/context"
 import { validateDiscordUserId } from "@/lib/utils"
 import { UserPlus, X, AlertTriangle } from "lucide-react"
+import { TimezoneSelect } from "@/components/ui/timezone-select"
 
 interface AddTargetFormProps {
   onClose: () => void
@@ -102,10 +103,10 @@ export function AddTargetForm({ onClose }: AddTargetFormProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <Input
-              placeholder="Timezone (IANA, e.g. America/New_York)"
+            <TimezoneSelect
               value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
+              onChange={setTimezone}
+              placeholder="Timezone (type to search…)"
             />
             <p className="text-[10px] text-muted-foreground">
               Drives sleep-schedule, routine, and UNUSUAL_HOUR alert windows. Defaults to UTC if empty.

@@ -27,7 +27,9 @@ import {
   FileText,
   Settings2,
   Download,
+  Globe,
 } from "lucide-react"
+import { TimezoneSelect } from "@/components/ui/timezone-select"
 
 const tabs = [
   { name: "Overview",  href: "",           icon: LayoutDashboard },
@@ -54,11 +56,18 @@ export default function TargetLayoutClient({ children }: { children: React.React
   const basePath     = `/targets/${userId}`
 
   // Label editing state
-  const [editingLabel,  setEditingLabel]  = useState(false)
-  const [labelValue,    setLabelValue]    = useState(target?.label || "")
-  const [labelHovered,  setLabelHovered]  = useState(false)
-  const [savingLabel,   setSavingLabel]   = useState(false)
+  const [editingLabel,     setEditingLabel]     = useState(false)
+  const [labelValue,       setLabelValue]       = useState(target?.label || "")
+  const [labelHovered,     setLabelHovered]     = useState(false)
+  const [savingLabel,      setSavingLabel]      = useState(false)
   const labelInputRef = useRef<HTMLInputElement>(null)
+
+  // Timezone editing state
+  const [editingTimezone,  setEditingTimezone]  = useState(false)
+  const [timezoneValue,    setTimezoneValue]    = useState(target?.timezone || "UTC")
+  const [tzHovered,        setTzHovered]        = useState(false)
+  const [savingTimezone,   setSavingTimezone]   = useState(false)
+  const [tzError,          setTzError]          = useState<string | null>(null)
 
   // Prevent React hydration mismatch: the static export was built with
   // userId="_" but the client resolves the real userId from the URL.
@@ -72,6 +81,12 @@ export default function TargetLayoutClient({ children }: { children: React.React
       setLabelValue(target?.label || "")
     }
   }, [target?.label, editingLabel])
+
+  useEffect(() => {
+    if (!editingTimezone) {
+      setTimezoneValue(target?.timezone || "UTC")
+    }
+  }, [target?.timezone, editingTimezone])
 
   // Focus input when editing starts
   useEffect(() => {
@@ -107,6 +122,33 @@ export default function TargetLayoutClient({ children }: { children: React.React
   const handleLabelCancel = () => {
     setLabelValue(target?.label || "")
     setEditingLabel(false)
+  }
+
+  const handleTimezoneSave = async () => {
+    if (savingTimezone) return
+    setTzError(null)
+    setSavingTimezone(true)
+    try {
+      const tz = timezoneValue.trim() || "UTC"
+      await api.updateTarget(userId, { timezone: tz })
+      await refreshTargets()
+      setEditingTimezone(false)
+    } catch (e) {
+      setTzError(e instanceof Error ? e.message : "Failed to update timezone")
+    } finally {
+      setSavingTimezone(false)
+    }
+  }
+
+  const handleTimezoneCancel = () => {
+    setTimezoneValue(target?.timezone || "UTC")
+    setTzError(null)
+    setEditingTimezone(false)
+  }
+
+  const handleTimezoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter")  { e.preventDefault(); handleTimezoneSave() }
+    if (e.key === "Escape") { e.preventDefault(); handleTimezoneCancel() }
   }
 
   const handleLabelKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -235,6 +277,68 @@ export default function TargetLayoutClient({ children }: { children: React.React
                 <span className="capitalize hidden sm:inline">{currentStatus} · </span>
                 {userId}
               </p>
+            </div>
+
+            {/* Timezone row */}
+            <div
+              className="flex items-center gap-1 min-h-[18px]"
+              onMouseEnter={() => setTzHovered(true)}
+              onMouseLeave={() => setTzHovered(false)}
+            >
+              {editingTimezone ? (
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <Globe className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                    <TimezoneSelect
+                      value={timezoneValue}
+                      onChange={setTimezoneValue}
+                      placeholder="Timezone…"
+                      disabled={savingTimezone}
+                      onKeyDown={handleTimezoneKeyDown}
+                      inputClassName="h-5 px-1.5 py-0 text-[10px] rounded focus:ring-0 focus:border-primary border-primary"
+                    />
+                    <button
+                      onClick={handleTimezoneSave}
+                      disabled={savingTimezone}
+                      className="rounded p-0.5 text-status-online hover:bg-secondary transition-colors disabled:opacity-50 flex-shrink-0"
+                      title="Save timezone"
+                    >
+                      <Check className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={handleTimezoneCancel}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-secondary transition-colors flex-shrink-0"
+                      title="Cancel"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                  {tzError && (
+                    <p className="text-[10px] text-destructive pl-4">{tzError}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Globe className="h-3 w-3 flex-shrink-0" />
+                  <span className="font-mono">{target?.timezone || "UTC"}</span>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setTimezoneValue(target?.timezone || "UTC")
+                      setTzError(null)
+                      setEditingTimezone(true)
+                    }}
+                    className={cn(
+                      "rounded p-0.5 hover:text-foreground hover:bg-secondary transition-all",
+                      tzHovered ? "opacity-100" : "opacity-0"
+                    )}
+                    title="Edit timezone"
+                  >
+                    <Pencil className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
