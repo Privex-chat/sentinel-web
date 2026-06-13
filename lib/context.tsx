@@ -181,8 +181,12 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
   const addTarget = useCallback(
     async (userId: string, label?: string, timezone?: string) => {
       // priority defaults to 0 selfbot-side; only timezone needs threading.
-      await api.addTarget(userId, label, undefined, undefined, timezone)
+      console.log('[context.addTarget] called with timezone:', JSON.stringify(timezone))
+      const result = await api.addTarget(userId, label, undefined, undefined, timezone)
+      console.log('[context.addTarget] api.addTarget returned:', JSON.stringify(result))
       api.clearCache()
+      const targets = await api.getTargets()
+      console.log('[context.addTarget] targets after refresh:', targets.map(t => ({ id: t.user_id, tz: t.timezone })))
       await refreshTargets()
     },
     [refreshTargets]
