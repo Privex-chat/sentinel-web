@@ -196,14 +196,11 @@ export const api = {
     notes?: string,
     priority?: number,
     timezone?: string,
-  ) => {
-    const body = JSON.stringify({ userId, label, notes, priority, timezone })
-    console.log('[api.addTarget] POST body:', body)
-    return request<Target>("/api/targets", {
+  ) =>
+    request<Target>("/api/targets", {
       method: "POST",
-      body,
-    })
-  },
+      body: JSON.stringify({ userId, label, notes, priority, timezone }),
+    }),
   removeTarget: (userId: string) =>
     request<{ success: boolean }>(`/api/targets/${userId}`, { method: "DELETE" }),
   /**
