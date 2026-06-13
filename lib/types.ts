@@ -40,6 +40,14 @@ export interface Target {
    * `!active` is clearer.
    */
   active: 0 | 1
+  /**
+   * IANA timezone identifier (e.g. "America/New_York", "Europe/London", "UTC").
+   * Added in selfbot schema v7. Drives every per-target hour/day analyser:
+   * sleep schedule, routine heatmap, DOW baselines, UNUSUAL_HOUR / COMES_ONLINE
+   * `after_hour` matchers. Defaults to "UTC" for targets created before v7 or
+   * when no timezone is provided on creation.
+   */
+  timezone: string
 }
 
 export interface SentinelEvent {
@@ -312,6 +320,12 @@ export interface SleepSchedule {
   irregularities: string[]
   confidence: number
   dataPoints: number
+  /**
+   * IANA timezone the analysis was rendered in. Surfaced from the selfbot so
+   * UIs can render "in target's local 23:30" instead of an unanchored time.
+   * Added alongside per-target tz support in selfbot Batch B.
+   */
+  timezone: string
 }
 
 export interface RoutinePattern {

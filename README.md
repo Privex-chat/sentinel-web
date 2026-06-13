@@ -34,11 +34,13 @@ The web dashboard is a full‑featured alternative to the Vencord plugin. It con
 
 - 📊 **Live target overview** with real‑time status updates
 - 🔍 **Per‑target deep dives** — presence analytics, gaming stats, voice habits, message analysis, music profile, social graph
-- 🕒 **Sleep schedule estimation** and weekly routine heatmaps
+- 🕒 **Sleep schedule estimation** and weekly routine heatmaps — rendered in each target's own IANA timezone
 - 🚨 **Anomaly detection** and behavioral alerts
 - 📝 **Full message history** including deleted and edited messages
 - 🖼️ **Profile change timeline** and avatar gallery
-- ⚙️ **Alert rule management**
+- ⚙️ **Alert rule management** — including server-side validated rule types + composite conditions
+- 🌐 **Per-target timezone** — set when adding a target (browser default is pre-filled), drives every hour/day-of-week analyser
+- 📤 **NDJSON streaming export** — millions of events download without crashing the browser
 - 🌍 **Accessible from any browser, any device** — wherever your selfbot is reachable
 
 **No data passes through Vercel or any third party** — all API calls go directly from your browser to your selfbot.

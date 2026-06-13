@@ -43,9 +43,9 @@ interface SentinelContextValue {
   targets:         Target[]
   targetStatuses:  Record<string, TargetStatus>
   refreshTargets:  () => Promise<void>
-  addTarget:       (userId: string, label?: string) => Promise<void>
+  addTarget:       (userId: string, label?: string, timezone?: string) => Promise<void>
   removeTarget:    (userId: string) => Promise<void>
-  updateTarget:    (userId: string, data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean }) => Promise<void>
+  updateTarget:    (userId: string, data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean; timezone?: string }) => Promise<void>
   isLoading:       boolean
   error:           string | null
 }
@@ -179,8 +179,9 @@ export function SentinelProvider({ children }: { children: ReactNode }) {
   }, [settings.sentinelToken])
 
   const addTarget = useCallback(
-    async (userId: string, label?: string) => {
-      await api.addTarget(userId, label)
+    async (userId: string, label?: string, timezone?: string) => {
+      // priority defaults to 0 selfbot-side; only timezone needs threading.
+      await api.addTarget(userId, label, undefined, undefined, timezone)
       api.clearCache()
       await refreshTargets()
     },

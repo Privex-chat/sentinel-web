@@ -51,7 +51,29 @@ The full API contract lives in [`lib/api.ts`](./lib/api.ts) — that is the sour
 
 ### CORS
 
-The selfbot ships with permissive CORS (`origin: true`, methods `GET/POST/PUT/PATCH/DELETE/OPTIONS`, no credentials). No backend config required to connect the panel — but if you put the API behind a reverse proxy, make sure it doesn't strip the `Authorization` header or buffer the `text/event-stream` response on `/api/events/stream` (set `X-Accel-Buffering: no` for nginx).
+The selfbot ships with an **allowlist** by default — `https://sentinel-panel.vercel.app`, `http://localhost:5173`, and `http://localhost:3000`. If you self-host the panel on a different domain (your own Vercel deployment, internal subdomain, etc.) set `API_CORS_ORIGINS` on the selfbot to a comma-separated list, e.g.:
+
+```env
+API_CORS_ORIGINS=https://panel.example.com,http://localhost:3000
+```
+
+A literal `*` value reflects any origin — useful when fronting the API yourself with another auth layer.
+
+Methods (`GET/POST/PUT/PATCH/DELETE/OPTIONS`) and headers (`Authorization`, `Content-Type`) remain unchanged. No credentialed requests.
+
+If you put the API behind a reverse proxy, make sure it doesn't strip the `Authorization` header or buffer the `text/event-stream` response on `/api/events/stream` (set `X-Accel-Buffering: no` for nginx).
+
+### Rate limiting
+
+The selfbot enforces **300 req/min/IP** out of the box (configurable in `src/api/server.ts`). The unauthenticated `/health` endpoint is allowlisted, so polling it for liveness never consumes the budget. SSE (`/api/events/stream`) is a single long-lived connection — it counts as one request, not one per event.
+
+### Liveness probe
+
+`/health` is unauthenticated and returns `{ status: "ok", uptimeMs, gatewayConnected }`. Point Railway/Fly/uptime monitors there instead of `/api/status` so they don't need the API token.
+
+### Error responses
+
+Unhandled handler errors now return `{ error: "Internal server error", requestId: "..." }` — the matching detail (including stack) lives in the selfbot's logs keyed by that same `requestId`. Schema-validation errors surface as `{ error: "Invalid request", details, requestId }` at HTTP 400. The panel surfaces `error` directly via its `request()` helper.
 
 ## Development
 
@@ -179,6 +201,19 @@ The API URL is entered in the browser on first launch — there is nothing to pa
 1. Confirm `/api/events/stream` is reachable behind your reverse proxy with `X-Accel-Buffering: no`
 2. Check long-lived connections aren't being killed by an upstream timeout (Cloudflare default is 100 s, Vercel free is 10 s)
 3. The panel auto-reconnects with exponential backoff up to 30 s, and replays missed events via `?since=<lastEventId>` — verify the selfbot version is recent enough to honour the `since` query param (added in the same audit pass)
+
+### Rate-limit 429s
+
+**Problem**: Dashboard suddenly stops loading data; browser network tab shows HTTP 429 with `Retry-After` header.
+
+**Solutions**:
+1. The selfbot's default budget is **300 req/min/IP**. If multiple tabs poll the same selfbot from the same IP they share that budget. Close idle tabs.
+2. If you're hosting a multi-user panel behind a single egress IP, raise the cap in `src/api/server.ts`.
+3. `/health` is allowlisted — use it for liveness, not `/api/status`.
+
+### Export download (NDJSON)
+
+The full export endpoint now streams **NDJSON** (one JSON object per line, Content-Type `application/x-ndjson`). The panel's `api.downloadExport(userId)` helper handles the Blob/file-save dance; `api.exportData(userId)` parses the stream into a `{ section: rows[] }` map for in-memory use. The previous "everything in one JSON tree" response shape is gone — any external tooling that consumed the old format needs to either read line-by-line or use the CSV path (`/api/export/:userId/csv`).
 
 ### Build Errors
 

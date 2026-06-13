@@ -13,11 +13,24 @@ interface AddTargetFormProps {
   onClose: () => void
 }
 
+// Default timezone hint for the picker. Picked from the browser at form-mount
+// so an operator on UK time sees "Europe/London" prefilled rather than the
+// selfbot's "UTC" fallback. If the browser refuses to disclose the zone the
+// field stays empty and the selfbot defaults to UTC server-side.
+function browserDefaultTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+  } catch {
+    return ""
+  }
+}
+
 export function AddTargetForm({ onClose }: AddTargetFormProps) {
   const { addTarget, targets } = useSentinel()
-  const [userId, setUserId] = useState("")
-  const [label, setLabel] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const [userId, setUserId]     = useState("")
+  const [label, setLabel]       = useState("")
+  const [timezone, setTimezone] = useState(browserDefaultTimezone())
+  const [error, setError]   = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const tooManyTargets = targets.length >= 5
@@ -25,7 +38,7 @@ export function AddTargetForm({ onClose }: AddTargetFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmedId = userId.trim()
-    
+
     if (!validateDiscordUserId(trimmedId)) {
       setError("Invalid Discord user ID (must be 17-20 digits)")
       return
@@ -35,7 +48,10 @@ export function AddTargetForm({ onClose }: AddTargetFormProps) {
     setError(null)
 
     try {
-      await addTarget(trimmedId, label.trim() || undefined)
+      // Empty timezone → let the selfbot apply its "UTC" default. The selfbot
+      // validates non-empty values against ICU and returns 400 on bad zones,
+      // which surfaces in the catch block below.
+      await addTarget(trimmedId, label.trim() || undefined, timezone.trim() || undefined)
       setUserId("")
       setLabel("")
       onClose()
@@ -84,6 +100,16 @@ export function AddTargetForm({ onClose }: AddTargetFormProps) {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
             />
+          </div>
+          <div className="space-y-1.5">
+            <Input
+              placeholder="Timezone (IANA, e.g. America/New_York)"
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Drives sleep-schedule, routine, and UNUSUAL_HOUR alert windows. Defaults to UTC if empty.
+            </p>
           </div>
           {error && (
             <p className="text-xs text-destructive">{error}</p>

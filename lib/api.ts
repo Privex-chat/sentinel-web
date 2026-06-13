@@ -168,19 +168,55 @@ export const api = {
   getStatus: () =>
     request<SentinelStatus>("/api/status", {}, 10_000),
 
+  /**
+   * Unauthenticated liveness probe. Added in selfbot Batch F so cloud
+   * platforms (Railway, Fly, uptime monitors) can probe without holding the
+   * API token. Returns `{ status: "ok", uptimeMs, gatewayConnected }`. The
+   * path is rate-limit-allowlisted server-side so polling here doesn't burn
+   * the 300 req/min/IP budget.
+   */
+  getHealth: async (): Promise<{ status: string; uptimeMs: number; gatewayConnected: boolean | null }> => {
+    validateBaseUrl(apiConfig.baseUrl)
+    const res = await fetch(`${apiConfig.baseUrl}/health`)
+    if (!res.ok) throw new Error(`Health check failed: ${res.status}`)
+    return res.json()
+  },
+
   // Targets
   getTargets: () =>
     request<Target[]>("/api/targets", {}, 5_000),
-  addTarget: (userId: string, label?: string, notes?: string, priority?: number) =>
+  /**
+   * Create a target. `timezone` is optional; the selfbot defaults to "UTC".
+   * When provided it must be a valid IANA identifier (e.g. "America/New_York")
+   * — the backend validates against ICU and returns 400 on unknown zones.
+   */
+  addTarget: (
+    userId: string,
+    label?: string,
+    notes?: string,
+    priority?: number,
+    timezone?: string,
+  ) =>
     request<Target>("/api/targets", {
       method: "POST",
-      body: JSON.stringify({ userId, label, notes, priority }),
+      body: JSON.stringify({ userId, label, notes, priority, timezone }),
     }),
   removeTarget: (userId: string) =>
     request<{ success: boolean }>(`/api/targets/${userId}`, { method: "DELETE" }),
+  /**
+   * Partial-update a target. Supplying `timezone` triggers an immediate refresh
+   * of the selfbot's in-memory tz cache so analytics queries see the new value
+   * on the next request.
+   */
   updateTarget: (
     userId: string,
-    data: { label?: string | null; notes?: string | null; priority?: number; active?: boolean }
+    data: {
+      label?: string | null
+      notes?: string | null
+      priority?: number
+      active?: boolean
+      timezone?: string
+    }
   ) =>
     request<Target>(`/api/targets/${userId}`, {
       method: "PATCH",
@@ -483,8 +519,110 @@ export const api = {
     }),
 
   // Export
-  exportData: (userId: string) =>
-    request<Record<string, unknown>>(`/api/export/${userId}`),
+  //
+  // The selfbot's `/api/export/:userId` endpoint streams NDJSON (one JSON
+  // object per line, Content-Type `application/x-ndjson`). Sections are
+  // framed by marker objects:
+  //
+  //     {"_section":"meta", ...}
+  //     {"_section":"events_start"}
+  //     {"_section":"events", ...row...}
+  //     {"_section":"events", ...row...}
+  //     {"_section":"events_end", "rows": N}
+  //     ...
+  //     {"_section":"complete", "totalRows": N}
+  //
+  // We can't reuse the standard JSON `request` helper here because the body
+  // is NDJSON, not a single JSON document. The helpers below parse the
+  // stream into a `{ section: rows[] }` map suitable for in-memory use, or
+  // hand the raw `Blob` to a download-trigger.
+  exportData: async (userId: string): Promise<Record<string, unknown[]>> => {
+    validateBaseUrl(apiConfig.baseUrl)
+    const res = await fetch(`${apiConfig.baseUrl}/api/export/${userId}`, {
+      headers: getHeaders(),
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`Export failed (${res.status}): ${body.slice(0, 200)}`)
+    }
+    const text   = await res.text()
+    const groups: Record<string, unknown[]> = {}
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      let row: { _section?: string } & Record<string, unknown>
+      try {
+        row = JSON.parse(trimmed)
+      } catch {
+        continue
+      }
+      const section = row._section
+      if (!section || section.endsWith("_start") || section.endsWith("_end") ||
+          section === "meta" || section === "complete" || section === "error") {
+        continue
+      }
+      // Strip the framing field — consumers only care about the row data.
+      const { _section, ...rowData } = row
+      void _section
+      ;(groups[section] ??= []).push(rowData)
+    }
+    return groups
+  },
+
+  /**
+   * Trigger a browser download of the NDJSON export. Returns the suggested
+   * filename for caller-side UI feedback. Streams the response into a Blob
+   * so even multi-million-row exports never block the React event loop with
+   * `JSON.parse`.
+   */
+  downloadExport: async (userId: string): Promise<string> => {
+    validateBaseUrl(apiConfig.baseUrl)
+    const res = await fetch(`${apiConfig.baseUrl}/api/export/${userId}`, {
+      headers: getHeaders(),
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`Export failed (${res.status}): ${body.slice(0, 200)}`)
+    }
+    const blob = await res.blob()
+    const url  = URL.createObjectURL(blob)
+    const filename = `sentinel_${userId}_export.ndjson`
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    return filename
+  },
+
+  /**
+   * Trigger a browser download of the CSV (events table only). Server-side
+   * streamed row-by-row; client-side just hands the blob to a temporary
+   * anchor. Useful for spreadsheet consumers that can't read NDJSON.
+   */
+  downloadExportCsv: async (userId: string): Promise<string> => {
+    validateBaseUrl(apiConfig.baseUrl)
+    const res = await fetch(`${apiConfig.baseUrl}/api/export/${userId}/csv`, {
+      headers: getHeaders(),
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`CSV export failed (${res.status}): ${body.slice(0, 200)}`)
+    }
+    const blob = await res.blob()
+    const url  = URL.createObjectURL(blob)
+    const filename = `sentinel_${userId}_events.csv`
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    return filename
+  },
 
   // Runtime config (hot-swap settings from the web UI)
   getRuntimeConfig: () =>
