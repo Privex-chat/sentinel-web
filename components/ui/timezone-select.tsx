@@ -157,9 +157,15 @@ export function TimezoneSelect({
 
   const openDropdown = useCallback(() => {
     if (disabled) return
+    // Pre-fill search with the current value so the user sees what's selected
+    // and can start editing from there rather than a blank input.
+    setSearch(value)
     setOpen(true)
-    requestAnimationFrame(() => inputRef.current?.focus())
-  }, [disabled])
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    })
+  }, [disabled, value])
 
   const handleInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!open) {
@@ -187,6 +193,10 @@ export function TimezoneSelect({
           handleSelect(flatItems[activeIndex].value)
         } else if (flatItems.length === 1) {
           handleSelect(flatItems[0].value)
+        } else {
+          // Exact match on the IANA value even if multiple label-matches exist
+          const exact = TIMEZONES.find((tz) => tz.value === search.trim())
+          if (exact) handleSelect(exact.value)
         }
         break
       case "Escape":
@@ -357,7 +367,7 @@ export function TimezoneSelect({
               ref={inputRef}
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); onChange(e.target.value) }}
               onClick={stopPropagation}
               onKeyDown={handleInputKeyDown}
               placeholder={placeholder}
