@@ -3,13 +3,13 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
+import { cn, isBootstrappingTarget } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useSentinel } from "@/lib/context"
 import { api } from "@/lib/api"
 import type { Target, TargetStatus } from "@/lib/types"
-import { X, Gamepad2, Music, Mic, Pencil, Check, Globe } from "lucide-react"
+import { X, Gamepad2, Music, Mic, Pencil, Check, Globe, Loader2 } from "lucide-react"
 import { TimezoneSelect } from "@/components/ui/timezone-select"
 
 interface TargetCardProps {
@@ -236,6 +236,12 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
 
             {target.priority >= 2 && <Badge variant="destructive">Critical</Badge>}
             {target.priority === 1 && <Badge variant="warning">High</Badge>}
+            {isBootstrappingTarget(target) && (
+              <Badge variant="warning" title="Initial profile fetch pending — alerts & anomaly surfacing are suppressed until the first /users/{id}/profile call lands.">
+                <Loader2 className="mr-1 h-2.5 w-2.5 animate-spin" />
+                Bootstrapping
+              </Badge>
+            )}
           </div>
 
           {/* Status row */}

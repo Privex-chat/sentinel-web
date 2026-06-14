@@ -227,6 +227,17 @@ export const api = {
   getTargetStatus: (userId: string) =>
     request<TargetStatus>(`/api/targets/${userId}/status`, {}, 5_000),
 
+  /**
+   * Force-complete a stuck bootstrap. Idempotent: a target that's already
+   * operational returns `wasAlreadyComplete: true` with the existing
+   * timestamp. Added in selfbot Batch H (Issue 1 onboarding pipeline).
+   */
+  forceCompleteBootstrap: (userId: string) =>
+    request<{ success: boolean; bootstrap_completed_at: number; wasAlreadyComplete: boolean }>(
+      `/api/targets/${userId}/bootstrap/complete`,
+      { method: "POST" }
+    ),
+
   // Events
   getEvents: (params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : ""

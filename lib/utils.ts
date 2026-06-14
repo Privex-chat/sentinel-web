@@ -1,9 +1,23 @@
 /* lib/utils.ts */
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { Target } from "./types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * True when the target is still in the onboarding bootstrap phase. While true,
+ * the selfbot suppresses alerts + anomaly surfacing for this target and the
+ * panel should show a small "Bootstrapping…" hint instead of empty-state
+ * messages like "no anomalies yet".
+ *
+ * Accepts an undefined target so it composes cleanly with `targets.find(...)`.
+ */
+export function isBootstrappingTarget(target: Target | null | undefined): boolean {
+  if (!target) return false
+  return target.bootstrap_completed_at == null
 }
 
 export function formatRelative(ts: number): string {

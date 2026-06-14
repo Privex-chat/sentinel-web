@@ -40,6 +40,7 @@ The web dashboard is a full‑featured alternative to the Vencord plugin. It con
 - 🖼️ **Profile change timeline** and avatar gallery
 - ⚙️ **Alert rule management** — including server-side validated rule types + composite conditions
 - 🌐 **Per-target timezone** — set when adding a target (browser default is pre-filled), drives every hour/day-of-week analyser
+- 🚦 **Clean target onboarding** — new targets show a "Bootstrapping…" badge while the initial profile fetch is pending. Alerts and anomaly surfacing for that target are server-side suppressed during the window so you don't see noise from the first wave of incomplete observations. Click "Skip wait" in the target header to force-complete immediately.
 - 📤 **NDJSON streaming export** — millions of events download without crashing the browser
 - 🌍 **Accessible from any browser, any device** — wherever your selfbot is reachable
 

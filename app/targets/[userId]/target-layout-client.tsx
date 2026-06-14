@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { useSentinel } from "@/lib/context"
 import { useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
-import { cn } from "@/lib/utils"
+import { cn, isBootstrappingTarget } from "@/lib/utils"
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -28,6 +28,7 @@ import {
   Settings2,
   Download,
   Globe,
+  Loader2,
 } from "lucide-react"
 import { TimezoneSelect } from "@/components/ui/timezone-select"
 
@@ -74,6 +75,29 @@ export default function TargetLayoutClient({ children }: { children: React.React
   // Must be declared here (after all other hooks) to keep hook count stable.
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+
+  // Bootstrap force-complete state — only relevant when the target is still
+  // in the onboarding phase. While bootstrapping, the selfbot suppresses
+  // alerts + anomaly surfacing for this target until the first profile fetch
+  // lands. Operator can skip the wait via the banner button below.
+  const [forcingBootstrap, setForcingBootstrap] = useState(false)
+  const targetIsBootstrapping = isBootstrappingTarget(target)
+
+  const handleForceCompleteBootstrap = async () => {
+    if (forcingBootstrap) return
+    setForcingBootstrap(true)
+    try {
+      await api.forceCompleteBootstrap(userId)
+      // Bust the per-target cache so the next refresh picks up the new
+      // bootstrap_completed_at value and the banner disappears.
+      api.clearCacheForTarget(userId)
+      await refreshTargets()
+    } catch (err) {
+      console.error("Failed to force-complete bootstrap:", err)
+    } finally {
+      setForcingBootstrap(false)
+    }
+  }
 
   // Sync label value when target loads/changes
   useEffect(() => {
@@ -375,6 +399,32 @@ export default function TargetLayoutClient({ children }: { children: React.React
           })}
         </div>
       </div>
+
+      {/* Bootstrap banner ─ shown only while the selfbot is still completing
+          the initial profile fetch for this target. The selfbot suppresses
+          alerts + anomaly surfacing during this phase to keep onboarding
+          artefacts (null → value profile diffs, unknown → offline presence
+          init) out of the operator's feed. The "Skip wait" button calls
+          POST /api/targets/:userId/bootstrap/complete which is idempotent. */}
+      {targetIsBootstrapping && (
+        <div className="border-b border-amber-500/40 bg-amber-500/10 px-3 py-2 md:px-6">
+          <div className="flex items-center gap-3 text-xs">
+            <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-amber-500" />
+            <span className="flex-1 text-amber-700 dark:text-amber-300">
+              <strong>Bootstrapping.</strong> Initial profile fetch pending — alerts and anomaly surfacing are suppressed for this target until the first <code>/users/{`{id}`}/profile</code> call lands (usually within seconds). Existing data still streams to the timeline.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleForceCompleteBootstrap}
+              disabled={forcingBootstrap}
+              className="flex-shrink-0"
+            >
+              {forcingBootstrap ? "Completing…" : "Skip wait"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Page content */}
       <div className="p-3 md:p-6">{children}</div>

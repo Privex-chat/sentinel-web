@@ -48,6 +48,23 @@ export interface Target {
    * when no timezone is provided on creation.
    */
   timezone: string
+  /**
+   * Epoch ms when the target finished the onboarding bootstrap phase, or null
+   * when bootstrap is still in progress. Added in selfbot schema v8.
+   *
+   * While null, the selfbot:
+   *   • suppresses PROFILE_UPDATE / AVATAR_CHANGE / USERNAME_CHANGE events
+   *   • early-returns from alert evaluation for every rule type
+   *   • returns an empty array from detectAnomalies()
+   *
+   * Existing targets (pre-v8) are auto-migrated to `bootstrap_completed_at =
+   * added_at` so they start operational. New targets get this set on the first
+   * successful /users/{id}/profile fetch — usually within seconds of the
+   * immediate post-add `bootstrapTargetNow()` call. A 30-min stuck-bootstrap
+   * sweep is the backstop. Operators can force-complete via
+   * POST /api/targets/:userId/bootstrap/complete.
+   */
+  bootstrap_completed_at: number | null
 }
 
 export interface SentinelEvent {
@@ -289,6 +306,13 @@ export interface TargetStatus {
     streaming: boolean
   } | null
   profile: ProfileSnapshot | null
+  /**
+   * Server-side derivation of "target is still onboarding." Mirrors
+   * `target.bootstrap_completed_at == null` but lives on the status endpoint
+   * so UIs don't have to remember to re-derive it. Optional in the type so
+   * pre-v8 selfbot deployments that don't emit it don't fail to deserialise.
+   */
+  isBootstrapping?: boolean
 }
 
 export interface SentinelStatus {
