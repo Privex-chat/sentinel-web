@@ -66,6 +66,18 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
   const spotifyActivity = activities.find((a) => a.type === 2)
   const isOnline        = currentStatus === "online"
 
+  // Tick once per second while bootstrapping so isBootstrappingTarget — a
+  // time-based comparison against Date.now() — re-evaluates and the badge
+  // disappears naturally the instant the grace window expires, with no
+  // /api/targets re-fetch required.
+  const targetIsBootstrapping = isBootstrappingTarget(target)
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!targetIsBootstrapping) return
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [targetIsBootstrapping])
+
   const handleLabelSave = async (e?: React.MouseEvent) => {
     e?.preventDefault()
     e?.stopPropagation()
@@ -236,8 +248,8 @@ export function TargetCard({ target, status, onRemove }: TargetCardProps) {
 
             {target.priority >= 2 && <Badge variant="destructive">Critical</Badge>}
             {target.priority === 1 && <Badge variant="warning">High</Badge>}
-            {isBootstrappingTarget(target) && (
-              <Badge variant="warning" title="Initial profile fetch pending — alerts & anomaly surfacing are suppressed until the first /users/{id}/profile call lands.">
+            {targetIsBootstrapping && (
+              <Badge variant="warning" title="Onboarding grace window — alerts & anomaly surfacing are suppressed for ~60 s after add to keep first-observation noise off the live feed.">
                 <Loader2 className="mr-1 h-2.5 w-2.5 animate-spin" />
                 Bootstrapping
               </Badge>

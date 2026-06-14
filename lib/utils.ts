@@ -8,16 +8,34 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * True when the target is still in the onboarding bootstrap phase. While true,
+ * True when the target is still in the onboarding grace window. While true,
  * the selfbot suppresses alerts + anomaly surfacing for this target and the
  * panel should show a small "Bootstrapping…" hint instead of empty-state
  * messages like "no anomalies yet".
  *
- * Accepts an undefined target so it composes cleanly with `targets.find(...)`.
+ * Time-based: `bootstrap_completed_at` is a future epoch ms for new targets
+ * and a past epoch ms for operational targets. The check just compares against
+ * the client clock, so the banner naturally disappears the moment the grace
+ * window elapses — no server round-trip required.
+ *
+ * Accepts undefined so it composes cleanly with `targets.find(...)`.
  */
 export function isBootstrappingTarget(target: Target | null | undefined): boolean {
   if (!target) return false
-  return target.bootstrap_completed_at == null
+  const v = target.bootstrap_completed_at
+  if (v == null) return true  // unknown / legacy → assume bootstrapping
+  return v > Date.now()
+}
+
+/**
+ * Seconds remaining until the grace window expires. Returns 0 once the window
+ * has passed. Useful for displaying a live countdown in the bootstrap banner.
+ */
+export function bootstrapSecondsRemaining(target: Target | null | undefined): number {
+  if (!target) return 0
+  const v = target.bootstrap_completed_at
+  if (v == null) return 0
+  return Math.max(0, Math.ceil((v - Date.now()) / 1000))
 }
 
 export function formatRelative(ts: number): string {

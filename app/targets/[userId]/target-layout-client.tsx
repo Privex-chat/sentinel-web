@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { useSentinel } from "@/lib/context"
 import { useTargetUserId } from "@/lib/hooks"
 import { api } from "@/lib/api"
-import { cn, isBootstrappingTarget } from "@/lib/utils"
+import { cn, isBootstrappingTarget, bootstrapSecondsRemaining } from "@/lib/utils"
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -77,11 +77,25 @@ export default function TargetLayoutClient({ children }: { children: React.React
   useEffect(() => setMounted(true), [])
 
   // Bootstrap force-complete state — only relevant when the target is still
-  // in the onboarding phase. While bootstrapping, the selfbot suppresses
-  // alerts + anomaly surfacing for this target until the first profile fetch
-  // lands. Operator can skip the wait via the banner button below.
+  // in the onboarding grace window. The selfbot suppresses alerts + anomaly
+  // surfacing for the time-based window (default 60 s) so the first wave of
+  // initial-observation events doesn't reach the operator as noise.
   const [forcingBootstrap, setForcingBootstrap] = useState(false)
+
+  // Tick once per second so isBootstrappingTarget() — which is a time-based
+  // comparison against Date.now() — re-evaluates and the banner disappears
+  // automatically the moment the grace window expires, without waiting for
+  // /api/targets to be re-fetched.
+  const [tick, setTick] = useState(0)
   const targetIsBootstrapping = isBootstrappingTarget(target)
+  useEffect(() => {
+    if (!targetIsBootstrapping) return
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
+    // tick is read inside, included so eslint stays happy + so a stale closure
+    // is impossible.
+  }, [targetIsBootstrapping, tick])
+  const graceSecsLeft = bootstrapSecondsRemaining(target)
 
   const handleForceCompleteBootstrap = async () => {
     if (forcingBootstrap) return
@@ -400,18 +414,21 @@ export default function TargetLayoutClient({ children }: { children: React.React
         </div>
       </div>
 
-      {/* Bootstrap banner ─ shown only while the selfbot is still completing
-          the initial profile fetch for this target. The selfbot suppresses
-          alerts + anomaly surfacing during this phase to keep onboarding
+      {/* Bootstrap banner ─ shown while the time-based onboarding grace
+          window is still active for this target. The selfbot suppresses
+          alerts + anomaly surfacing during the window so initial-observation
           artefacts (null → value profile diffs, unknown → offline presence
-          init) out of the operator's feed. The "Skip wait" button calls
-          POST /api/targets/:userId/bootstrap/complete which is idempotent. */}
+          init, first-fetch SERVER_JOIN waves) don't reach the operator's feed.
+          Banner disappears automatically when Date.now() crosses
+          target.bootstrap_completed_at — no server round-trip required.
+          "Skip wait" calls POST /api/targets/:userId/bootstrap/complete to
+          flip the target out of the window immediately. */}
       {targetIsBootstrapping && (
         <div className="border-b border-amber-500/40 bg-amber-500/10 px-3 py-2 md:px-6">
           <div className="flex items-center gap-3 text-xs">
             <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-amber-500" />
             <span className="flex-1 text-amber-700 dark:text-amber-300">
-              <strong>Bootstrapping.</strong> Initial profile fetch pending — alerts and anomaly surfacing are suppressed for this target until the first <code>/users/{`{id}`}/profile</code> call lands (usually within seconds). Existing data still streams to the timeline.
+              <strong>Bootstrapping{graceSecsLeft > 0 ? ` (${graceSecsLeft}s)` : ""}.</strong> Onboarding grace window active — alerts and anomaly surfacing are suppressed for this target while initial profile, presence, and guild observations stream in. Existing data still hits the timeline.
             </span>
             <Button
               size="sm"
